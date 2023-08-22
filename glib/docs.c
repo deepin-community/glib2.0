@@ -1,6 +1,8 @@
 /*
  * Copyright © 2011 Red Hat, Inc
  *
+ * SPDX-License-Identifier: LGPL-2.1-or-later
+ *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
  * License as published by the Free Software Foundation; either
@@ -2047,7 +2049,7 @@
  *   G_GNUC_END_IGNORE_DEPRECATIONS
  * ]|
  *
- * |[<!-- language="C" --
+ * |[<!-- language="C" -->
  * static void
  * test_deprecated_function (void)
  * {
@@ -2081,7 +2083,7 @@
  * meant to be portable across different compilers and must be placed
  * before the function declaration.
  *
- * |[<!-- language="C" --
+ * |[<!-- language="C" -->
  * G_DEPRECATED
  * int my_mistake (void);
  * ]|
@@ -2098,7 +2100,7 @@
  * is meant to be portable across different compilers and must be placed
  * before the function declaration.
  *
- * |[<!-- language="C" --
+ * |[<!-- language="C" -->
  * G_DEPRECATED_FOR(my_replacement)
  * int my_mistake (void);
  * ]|

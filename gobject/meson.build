@@ -80,6 +80,7 @@ foreach tool: python_tools
     output : tool,
     configuration : python_tools_conf,
     install_dir : glib_bindir,
+    install_tag : 'bin-devel',
   )
 
   # Set variables for later use
@@ -150,16 +151,17 @@ pkg.generate(libgobject,
 libgobject_dep = declare_dependency(link_with : libgobject,
   include_directories : [gobjectinc],
   dependencies : [libglib_dep, glib_enumtypes_dep])
-
-if meson.version().version_compare('>=0.54.0')
-  meson.override_dependency('gobject-2.0', libgobject_dep)
-endif
+meson.override_dependency('gobject-2.0', libgobject_dep)
 
 executable('gobject-query', 'gobject-query.c',
   install : true,
+  install_tag : 'bin-devel',
   dependencies : [libglib_dep, libgobject_dep])
 
-install_data('gobject_gdb.py', install_dir : join_paths(glib_pkgdatadir, 'gdb'))
+install_data('gobject_gdb.py',
+  install_dir : glib_pkgdatadir / 'gdb',
+  install_tag : 'devel',
+)
 gdb_conf = configuration_data()
 gdb_conf.set('datadir', glib_datadir)
 configure_file(
@@ -167,21 +169,21 @@ configure_file(
   output: 'libgobject-2.0.so.@0@-gdb.py'.format(library_version),
   configuration: gdb_conf,
   install_dir: gdb_install_dir,
+  install_tag: 'devel',
   install: gdb_install,
 )
 
 # This is needed to make gdb find gobject_gdb.py
-if meson.version().version_compare('>=0.58')
-  env = environment()
-  env.prepend('PYTHONPATH', meson.current_source_dir())
-  meson.add_devenv(env)
-endif
+env = environment()
+env.prepend('PYTHONPATH', meson.current_source_dir())
+meson.add_devenv(env)
 
 if enable_systemtap
   gobject_stp = configure_file(input : 'gobject.stp.in',
     output : '@0@.stp'.format(libgobject.full_path().split('/').get(-1)),
     configuration : stp_cdata,
     install_dir : tapset_install_dir,
+    install_tag : 'systemtap',
   )
 endif
 

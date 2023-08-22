@@ -2,6 +2,8 @@
  *
  * Copyright 2011-2018 Red Hat, Inc.
  *
+ * SPDX-License-Identifier: LGPL-2.1-or-later
+ *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
  * License as published by the Free Software Foundation; either
@@ -1134,7 +1136,7 @@ g_task_get_context (GTask *task)
  *
  * Gets @task's #GCancellable
  *
- * Returns: (transfer none): @task's #GCancellable
+ * Returns: (nullable) (transfer none): @task's #GCancellable
  *
  * Since: 2.36
  */
@@ -1257,7 +1259,6 @@ g_task_return (GTask           *task,
                GTaskReturnType  type)
 {
   GSource *source;
-  gchar *source_name = NULL;
 
   if (type != G_TASK_RETURN_FROM_THREAD)
     task->ever_returned = TRUE;
@@ -1306,10 +1307,22 @@ g_task_return (GTask           *task,
 
   /* Otherwise, complete in the next iteration */
   source = g_idle_source_new ();
-  source_name = g_strdup_printf ("[gio] %s complete_in_idle_cb",
-                                 (task->name != NULL) ? task->name : "(unnamed)");
-  g_source_set_name (source, source_name);
-  g_free (source_name);
+
+  /* Note: in case the task name is NULL we set it as a const string instead
+   * of going through the concat path which is more expensive and may show in the
+   * profiler if g_task_return is called very often
+   */
+  if (task->name == NULL)
+    g_source_set_static_name (source, "[gio] (unnamed) complete_in_idle_cb");
+  else
+    {
+      gchar *source_name;
+
+      source_name = g_strconcat ("[gio] ", task->name, " complete_in_idle_cb", NULL);
+      g_source_set_name (source, source_name);
+      g_free (source_name);
+    }
+
   g_task_attach_source (task, source, complete_in_idle_cb);
   g_source_unref (source);
 }
@@ -1517,7 +1530,8 @@ g_task_start_task_thread (GTask           *task,
       g_signal_connect_data (task->cancellable, "cancelled",
                              G_CALLBACK (task_thread_cancelled),
                              g_object_ref (task),
-                             task_thread_cancelled_disconnect_notify, 0);
+                             task_thread_cancelled_disconnect_notify,
+                             G_CONNECT_DEFAULT);
     }
 
   if (g_private_get (&task_private))

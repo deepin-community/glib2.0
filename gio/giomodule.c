@@ -2,6 +2,8 @@
  * 
  * Copyright (C) 2006-2007 Red Hat, Inc.
  *
+ * SPDX-License-Identifier: LGPL-2.1-or-later
+ *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
  * License as published by the Free Software Foundation; either
@@ -517,7 +519,7 @@ g_io_modules_scan_all_in_directory_with_scope (const char     *dirname,
 	  char *line = lines[i];
 	  char *file;
 	  char *colon;
-	  char **extension_points;
+	  char **strv_extension_points;
 
 	  if (line[0] == '#')
 	    continue;
@@ -537,8 +539,8 @@ g_io_modules_scan_all_in_directory_with_scope (const char     *dirname,
             cache = g_hash_table_new_full (g_str_hash, g_str_equal,
                                            g_free, (GDestroyNotify)g_strfreev);
 
-	  extension_points = g_strsplit (colon, ",", -1);
-	  g_hash_table_insert (cache, file, extension_points);
+	  strv_extension_points = g_strsplit (colon, ",", -1);
+	  g_hash_table_insert (cache, file, strv_extension_points);
 	}
       g_strfreev (lines);
     }
@@ -550,24 +552,24 @@ g_io_modules_scan_all_in_directory_with_scope (const char     *dirname,
 	  GIOExtensionPoint *extension_point;
 	  GIOModule *module;
 	  gchar *path;
-	  char **extension_points = NULL;
+	  char **strv_extension_points = NULL;
 	  int i;
 
 	  path = g_build_filename (dirname, name, NULL);
 	  module = g_io_module_new (path);
 
           if (cache)
-            extension_points = g_hash_table_lookup (cache, name);
+            strv_extension_points = g_hash_table_lookup (cache, name);
 
-	  if (extension_points != NULL &&
+	  if (strv_extension_points != NULL &&
 	      g_stat (path, &statbuf) == 0 &&
 	      statbuf.st_ctime <= cache_time)
 	    {
 	      /* Lazy load/init the library when first required */
-	      for (i = 0; extension_points[i] != NULL; i++)
+	      for (i = 0; strv_extension_points[i] != NULL; i++)
 		{
 		  extension_point =
-		    g_io_extension_point_register (extension_points[i]);
+		    g_io_extension_point_register (strv_extension_points[i]);
 		  extension_point->lazy_load_modules =
 		    g_list_prepend (extension_point->lazy_load_modules,
 				    module);
@@ -1062,10 +1064,6 @@ _g_io_module_get_default (const gchar         *extension_point,
   return g_steal_pointer (&impl);
 }
 
-G_LOCK_DEFINE_STATIC (registered_extensions);
-G_LOCK_DEFINE_STATIC (loaded_dirs);
-
-extern GType g_fen_file_monitor_get_type (void);
 extern GType g_inotify_file_monitor_get_type (void);
 extern GType g_kqueue_file_monitor_get_type (void);
 extern GType g_win32_file_monitor_get_type (void);
@@ -1180,15 +1178,11 @@ _g_io_win32_get_module (void)
 void
 _g_io_modules_ensure_extension_points_registered (void)
 {
-  static gboolean registered_extensions = FALSE;
+  static gsize registered_extensions = FALSE;
   GIOExtensionPoint *ep;
 
-  G_LOCK (registered_extensions);
-  
-  if (!registered_extensions)
+  if (g_once_init_enter (&registered_extensions))
     {
-      registered_extensions = TRUE;
-      
 #if defined(G_OS_UNIX) && !defined(HAVE_COCOA)
 #if !GLIB_CHECK_VERSION (3, 0, 0)
       ep = g_io_extension_point_register (G_DESKTOP_APP_INFO_LOOKUP_EXTENSION_POINT_NAME);
@@ -1237,9 +1231,9 @@ _g_io_modules_ensure_extension_points_registered (void)
 
       ep = g_io_extension_point_register (G_POWER_PROFILE_MONITOR_EXTENSION_POINT_NAME);
       g_io_extension_point_set_required_type (ep, G_TYPE_POWER_PROFILE_MONITOR);
+
+      g_once_init_leave (&registered_extensions, TRUE);
     }
-  
-  G_UNLOCK (registered_extensions);
 }
 
 static gchar *
@@ -1277,20 +1271,17 @@ get_gio_module_dir (void)
 void
 _g_io_modules_ensure_loaded (void)
 {
-  static gboolean loaded_dirs = FALSE;
+  static gsize loaded_dirs = FALSE;
   const char *module_path;
   GIOModuleScope *scope;
 
   _g_io_modules_ensure_extension_points_registered ();
-  
-  G_LOCK (loaded_dirs);
 
-  if (!loaded_dirs)
+  if (g_once_init_enter (&loaded_dirs))
     {
       gboolean is_setuid = GLIB_PRIVATE_CALL (g_check_setuid) ();
       gchar *module_dir;
 
-      loaded_dirs = TRUE;
       scope = g_io_module_scope_new (G_IO_MODULE_SCOPE_BLOCK_DUPLICATES);
 
       /* First load any overrides, extras (but not if running as setuid!) */
@@ -1328,9 +1319,6 @@ _g_io_modules_ensure_loaded (void)
 #endif
 #if defined(HAVE_KQUEUE)
       g_type_ensure (g_kqueue_file_monitor_get_type ());
-#endif
-#if defined(HAVE_FEN)
-      g_type_ensure (g_fen_file_monitor_get_type ());
 #endif
 #ifdef G_OS_WIN32
       g_type_ensure (_g_win32_volume_monitor_get_type ());
@@ -1377,9 +1365,9 @@ _g_io_modules_ensure_loaded (void)
 #ifdef G_OS_WIN32
       g_type_ensure (_g_win32_network_monitor_get_type ());
 #endif
-    }
 
-  G_UNLOCK (loaded_dirs);
+      g_once_init_leave (&loaded_dirs, TRUE);
+    }
 }
 
 static void

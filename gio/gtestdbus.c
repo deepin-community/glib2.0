@@ -3,6 +3,8 @@
  * Copyright (C) 2008-2010 Red Hat, Inc.
  * Copyright (C) 2012 Collabora Ltd. <http://www.collabora.co.uk/>
  *
+ * SPDX-License-Identifier: LGPL-2.1-or-later
+ *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
  * License as published by the Free Software Foundation; either
@@ -92,7 +94,7 @@ _g_object_unref_and_wait_weak_notify (gpointer object)
   g_idle_add (unref_on_idle, object);
 
   /* Make sure we don't block forever */
-  timeout_id = g_timeout_add (30 * 1000, on_weak_notify_timeout, &data);
+  timeout_id = g_timeout_add_seconds (30, on_weak_notify_timeout, &data);
 
   g_main_loop_run (data.loop);
 

@@ -5,6 +5,8 @@
  * Copyright 1998 Sebastian Wilhelmi; University of Karlsruhe
  *                Owen Taylor
  *
+ * SPDX-License-Identifier: LGPL-2.1-or-later
+ *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
  * License as published by the Free Software Foundation; either
@@ -472,7 +474,7 @@
 
 /**
  * GThreadFunc:
- * @data: data passed to the thread
+ * @user_data: data passed to the thread
  *
  * Specifies the type of the @func functions passed to g_thread_new()
  * or g_thread_try_new().
@@ -739,11 +741,13 @@ void
                      gsize          result)
 {
   gsize *value_location = (gsize *) location;
+  gsize old_value;
 
-  g_return_if_fail (g_atomic_pointer_get (value_location) == 0);
   g_return_if_fail (result != 0);
 
-  g_atomic_pointer_set (value_location, result);
+  old_value = (gsize) g_atomic_pointer_exchange (value_location, result);
+  g_return_if_fail (old_value == 0);
+
   g_mutex_lock (&g_once_mutex);
   g_return_if_fail (g_once_init_list != NULL);
   g_once_init_list = g_slist_remove (g_once_init_list, (void*) value_location);

@@ -4,6 +4,8 @@
  * gthread.c: posix thread system implementation
  * Copyright 1998 Sebastian Wilhelmi; University of Karlsruhe
  *
+ * SPDX-License-Identifier: LGPL-2.1-or-later
+ *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
  * License as published by the Free Software Foundation; either
@@ -72,7 +74,7 @@
 #include <sys/syscall.h>
 #endif
 
-#if defined(HAVE_FUTEX) && \
+#if (defined(HAVE_FUTEX) || defined(HAVE_FUTEX_TIME64)) && \
     (defined(HAVE_STDATOMIC_H) || defined(__ATOMIC_SEQ_CST))
 #define USE_NATIVE_MUTEX
 #endif
@@ -193,7 +195,7 @@ g_mutex_init (GMutex *mutex)
  * Calling g_mutex_clear() on a locked mutex leads to undefined
  * behaviour.
  *
- * Sine: 2.32
+ * Since: 2.32
  */
 void
 g_mutex_clear (GMutex *mutex)
@@ -368,7 +370,7 @@ g_rec_mutex_init (GRecMutex *rec_mutex)
  * Calling g_rec_mutex_clear() on a locked recursive mutex leads
  * to undefined behaviour.
  *
- * Sine: 2.32
+ * Since: 2.32
  */
 void
 g_rec_mutex_clear (GRecMutex *rec_mutex)
@@ -525,7 +527,7 @@ g_rw_lock_init (GRWLock *rw_lock)
  * Calling g_rw_lock_clear() when any thread holds the lock
  * leads to undefined behaviour.
  *
- * Sine: 2.32
+ * Since: 2.32
  */
 void
 g_rw_lock_clear (GRWLock *rw_lock)
@@ -1263,7 +1265,6 @@ linux_pthread_proxy (void *data)
         g_critical ("Failed to set scheduler settings: %s", g_strerror (errsv));
       else if (res == -1)
         g_debug ("Failed to set scheduler settings: %s", g_strerror (errsv));
-      printed_scheduler_warning = TRUE;
     }
 
   return thread->proxy (data);
@@ -1396,15 +1397,6 @@ g_system_thread_set_name (const gchar *name)
 /* {{{1 GMutex and GCond futex implementation */
 
 #if defined(USE_NATIVE_MUTEX)
-
-#include <linux/futex.h>
-#include <sys/syscall.h>
-
-#ifndef FUTEX_WAIT_PRIVATE
-#define FUTEX_WAIT_PRIVATE FUTEX_WAIT
-#define FUTEX_WAKE_PRIVATE FUTEX_WAKE
-#endif
-
 /* We should expand the set of operations available in gatomic once we
  * have better C11 support in GCC in common distributions (ie: 4.9).
  *
@@ -1447,9 +1439,16 @@ g_system_thread_set_name (const gchar *name)
  *
  *  1: acquired by one thread only, no contention
  *
- *  > 1: contended
- *
- *
+ *  2: contended
+ */
+
+typedef enum {
+  G_MUTEX_STATE_EMPTY = 0,
+  G_MUTEX_STATE_OWNED,
+  G_MUTEX_STATE_CONTENDED,
+} GMutexState;
+
+ /*
  * As such, attempting to acquire the lock should involve an increment.
  * If we find that the previous value was 0 then we can return
  * immediately.
@@ -1468,52 +1467,59 @@ g_system_thread_set_name (const gchar *name)
 void
 g_mutex_init (GMutex *mutex)
 {
-  mutex->i[0] = 0;
+  mutex->i[0] = G_MUTEX_STATE_EMPTY;
 }
 
 void
 g_mutex_clear (GMutex *mutex)
 {
-  if G_UNLIKELY (mutex->i[0] != 0)
+  if G_UNLIKELY (mutex->i[0] != G_MUTEX_STATE_EMPTY)
     {
       fprintf (stderr, "g_mutex_clear() called on uninitialised or locked mutex\n");
       g_abort ();
     }
 }
 
-static void __attribute__((noinline))
+G_GNUC_NO_INLINE
+static void
 g_mutex_lock_slowpath (GMutex *mutex)
 {
-  /* Set to 2 to indicate contention.  If it was zero before then we
+  /* Set to contended.  If it was empty before then we
    * just acquired the lock.
    *
-   * Otherwise, sleep for as long as the 2 remains...
+   * Otherwise, sleep for as long as the contended state remains...
    */
-  while (exchange_acquire (&mutex->i[0], 2) != 0)
-    syscall (__NR_futex, &mutex->i[0], (gsize) FUTEX_WAIT_PRIVATE, (gsize) 2, NULL);
+  while (exchange_acquire (&mutex->i[0], G_MUTEX_STATE_CONTENDED) != G_MUTEX_STATE_EMPTY)
+    {
+      g_futex_simple (&mutex->i[0], (gsize) FUTEX_WAIT_PRIVATE,
+                      G_MUTEX_STATE_CONTENDED, NULL);
+    }
 }
 
-static void __attribute__((noinline))
+G_GNUC_NO_INLINE
+static void
 g_mutex_unlock_slowpath (GMutex *mutex,
                          guint   prev)
 {
   /* We seem to get better code for the uncontended case by splitting
    * this out...
    */
-  if G_UNLIKELY (prev == 0)
+  if G_UNLIKELY (prev == G_MUTEX_STATE_EMPTY)
     {
       fprintf (stderr, "Attempt to unlock mutex that was not locked\n");
       g_abort ();
     }
 
-  syscall (__NR_futex, &mutex->i[0], (gsize) FUTEX_WAKE_PRIVATE, (gsize) 1, NULL);
+  g_futex_simple (&mutex->i[0], (gsize) FUTEX_WAKE_PRIVATE, (gsize) 1, NULL);
 }
 
 void
 g_mutex_lock (GMutex *mutex)
 {
-  /* 0 -> 1 and we're done.  Anything else, and we need to wait... */
-  if G_UNLIKELY (g_atomic_int_add (&mutex->i[0], 1) != 0)
+  /* empty -> owned and we're done.  Anything else, and we need to wait... */
+  if G_UNLIKELY (!g_atomic_int_compare_and_exchange (&mutex->i[0],
+                                                     G_MUTEX_STATE_EMPTY,
+                                                     G_MUTEX_STATE_OWNED))
     g_mutex_lock_slowpath (mutex);
 }
 
@@ -1522,22 +1528,22 @@ g_mutex_unlock (GMutex *mutex)
 {
   guint prev;
 
-  prev = exchange_release (&mutex->i[0], 0);
+  prev = exchange_release (&mutex->i[0], G_MUTEX_STATE_EMPTY);
 
   /* 1-> 0 and we're done.  Anything else and we need to signal... */
-  if G_UNLIKELY (prev != 1)
+  if G_UNLIKELY (prev != G_MUTEX_STATE_OWNED)
     g_mutex_unlock_slowpath (mutex, prev);
 }
 
 gboolean
 g_mutex_trylock (GMutex *mutex)
 {
-  guint zero = 0;
+  GMutexState empty = G_MUTEX_STATE_EMPTY;
 
   /* We don't want to touch the value at all unless we can move it from
-   * exactly 0 to 1.
+   * exactly empty to owned.
    */
-  return compare_exchange_acquire (&mutex->i[0], &zero, 1);
+  return compare_exchange_acquire (&mutex->i[0], &empty, G_MUTEX_STATE_OWNED);
 }
 
 /* Condition variables are implemented in a rather simple way as well.
@@ -1572,7 +1578,7 @@ g_cond_wait (GCond  *cond,
   guint sampled = (guint) g_atomic_int_get (&cond->i[0]);
 
   g_mutex_unlock (mutex);
-  syscall (__NR_futex, &cond->i[0], (gsize) FUTEX_WAIT_PRIVATE, (gsize) sampled, NULL);
+  g_futex_simple (&cond->i[0], (gsize) FUTEX_WAIT_PRIVATE, (gsize) sampled, NULL);
   g_mutex_lock (mutex);
 }
 
@@ -1581,7 +1587,7 @@ g_cond_signal (GCond *cond)
 {
   g_atomic_int_inc (&cond->i[0]);
 
-  syscall (__NR_futex, &cond->i[0], (gsize) FUTEX_WAKE_PRIVATE, (gsize) 1, NULL);
+  g_futex_simple (&cond->i[0], (gsize) FUTEX_WAKE_PRIVATE, (gsize) 1, NULL);
 }
 
 void
@@ -1589,7 +1595,7 @@ g_cond_broadcast (GCond *cond)
 {
   g_atomic_int_inc (&cond->i[0]);
 
-  syscall (__NR_futex, &cond->i[0], (gsize) FUTEX_WAKE_PRIVATE, (gsize) INT_MAX, NULL);
+  g_futex_simple (&cond->i[0], (gsize) FUTEX_WAKE_PRIVATE, (gsize) INT_MAX, NULL);
 }
 
 gboolean
@@ -1599,6 +1605,7 @@ g_cond_wait_until (GCond  *cond,
 {
   struct timespec now;
   struct timespec span;
+
   guint sampled;
   int res;
   gboolean success;
@@ -1618,13 +1625,82 @@ g_cond_wait_until (GCond  *cond,
   if (span.tv_sec < 0)
     return FALSE;
 
+  /* `struct timespec` as defined by the libc headers does not necessarily
+   * have any relation to the one used by the kernel for the `futex` syscall.
+   *
+   * Specifically, the libc headers might use 64-bit `time_t` while the kernel
+   * headers use 32-bit `__kernel_old_time_t` on certain systems.
+   *
+   * To get around this problem we
+   *   a) check if `futex_time64` is available, which only exists on 32-bit
+   *      platforms and always uses 64-bit `time_t`.
+   *   b) otherwise (or if that returns `ENOSYS`), we call the normal `futex`
+   *      syscall with the `struct timespec` used by the kernel, which uses
+   *      `__kernel_long_t` for both its fields. We use that instead of
+   *      `__kernel_old_time_t` because it is equivalent and available in the
+   *      kernel headers for a longer time.
+   *
+   * Also some 32-bit systems do not define `__NR_futex` at all and only
+   * define `__NR_futex_time64`.
+   */
+
   sampled = cond->i[0];
   g_mutex_unlock (mutex);
-  res = syscall (__NR_futex, &cond->i[0], (gsize) FUTEX_WAIT_PRIVATE, (gsize) sampled, &span);
-  success = (res < 0 && errno == ETIMEDOUT) ? FALSE : TRUE;
-  g_mutex_lock (mutex);
 
-  return success;
+#ifdef __NR_futex_time64
+  {
+    struct
+    {
+      gint64 tv_sec;
+      gint64 tv_nsec;
+    } span_arg;
+
+    span_arg.tv_sec = span.tv_sec;
+    span_arg.tv_nsec = span.tv_nsec;
+
+    res = syscall (__NR_futex_time64, &cond->i[0], (gsize) FUTEX_WAIT_PRIVATE, (gsize) sampled, &span_arg);
+
+    /* If the syscall does not exist (`ENOSYS`), we retry again below with the
+     * normal `futex` syscall. This can happen if newer kernel headers are
+     * used than the kernel that is actually running.
+     */
+#  ifdef __NR_futex
+    if (res >= 0 || errno != ENOSYS)
+#  endif /* defined(__NR_futex) */
+      {
+        success = (res < 0 && errno == ETIMEDOUT) ? FALSE : TRUE;
+        g_mutex_lock (mutex);
+
+        return success;
+      }
+  }
+#endif
+
+#ifdef __NR_futex
+  {
+    struct
+    {
+      __kernel_long_t tv_sec;
+      __kernel_long_t tv_nsec;
+    } span_arg;
+
+    /* Make sure to only ever call this if the end time actually fits into the target type */
+    if (G_UNLIKELY (sizeof (__kernel_long_t) < 8 && span.tv_sec > G_MAXINT32))
+      g_error ("%s: Can’t wait for more than %us", G_STRFUNC, G_MAXINT32);
+
+    span_arg.tv_sec = span.tv_sec;
+    span_arg.tv_nsec = span.tv_nsec;
+
+    res = syscall (__NR_futex, &cond->i[0], (gsize) FUTEX_WAIT_PRIVATE, (gsize) sampled, &span_arg);
+    success = (res < 0 && errno == ETIMEDOUT) ? FALSE : TRUE;
+    g_mutex_lock (mutex);
+
+    return success;
+  }
+#endif /* defined(__NR_futex) */
+
+  /* We can't end up here because of the checks above */
+  g_assert_not_reached ();
 }
 
 #endif

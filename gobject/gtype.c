@@ -1,6 +1,8 @@
 /* GObject - GLib Type, Object, Parameter and Signal Library
  * Copyright (C) 1998-1999, 2000-2001 Tim Janik and Red Hat, Inc.
  *
+ * SPDX-License-Identifier: LGPL-2.1-or-later
+ *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
  * License as published by the Free Software Foundation; either
@@ -1858,13 +1860,13 @@ g_type_create_instance (GType type)
   guint i;
 
   node = lookup_type_node_I (type);
-  if (!node || !node->is_instantiatable)
+  if (G_UNLIKELY (!node || !node->is_instantiatable))
     {
       g_error ("cannot create new instance of invalid (non-instantiatable) type '%s'",
 		 type_descriptive_name_I (type));
     }
   /* G_TYPE_IS_ABSTRACT() is an external call: _U */
-  if (!node->mutatable_check_cache && G_TYPE_IS_ABSTRACT (type))
+  if (G_UNLIKELY (!node->mutatable_check_cache && G_TYPE_IS_ABSTRACT (type)))
     {
       g_error ("cannot create instance of abstract (non-instantiatable) type '%s'",
 		 type_descriptive_name_I (type));
@@ -1893,7 +1895,7 @@ g_type_create_instance (GType type)
   ivar_size = node->data->instance.instance_size;
 
 #ifdef ENABLE_VALGRIND
-  if (private_size && RUNNING_ON_VALGRIND)
+  if (G_UNLIKELY (private_size && RUNNING_ON_VALGRIND))
     {
       private_size += ALIGN_STRUCT (1);
 
@@ -1963,14 +1965,14 @@ g_type_free_instance (GTypeInstance *instance)
   
   class = instance->g_class;
   node = lookup_type_node_I (class->g_type);
-  if (!node || !node->is_instantiatable || !node->data || node->data->class.class != (gpointer) class)
+  if (G_UNLIKELY (!node || !node->is_instantiatable || !node->data || node->data->class.class != (gpointer) class))
     {
       g_warning ("cannot free instance of invalid (non-instantiatable) type '%s'",
 		 type_descriptive_name_I (class->g_type));
       return;
     }
   /* G_TYPE_IS_ABSTRACT() is an external call: _U */
-  if (!node->mutatable_check_cache && G_TYPE_IS_ABSTRACT (NODE_TYPE (node)))
+  if (G_UNLIKELY (!node->mutatable_check_cache && G_TYPE_IS_ABSTRACT (NODE_TYPE (node))))
     {
       g_warning ("cannot free instance of abstract (non-instantiatable) type '%s'",
 		 NODE_NAME (node));
@@ -1990,7 +1992,7 @@ g_type_free_instance (GTypeInstance *instance)
   /* See comment in g_type_create_instance() about what's going on here.
    * We're basically unwinding what we put into motion there.
    */
-  if (private_size && RUNNING_ON_VALGRIND)
+  if (G_UNLIKELY (private_size && RUNNING_ON_VALGRIND))
     {
       private_size += ALIGN_STRUCT (1);
       allocated -= ALIGN_STRUCT (1);
@@ -3577,8 +3579,8 @@ type_node_conforms_to_U (TypeNode *node,
  * Returns: %TRUE if @type is a @is_a_type
  */
 gboolean
-g_type_is_a (GType type,
-	     GType iface_type)
+(g_type_is_a) (GType type,
+	       GType iface_type)
 {
   TypeNode *node, *iface_node;
   gboolean is_a;

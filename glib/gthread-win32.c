@@ -5,6 +5,8 @@
  * Copyright 1998-2001 Sebastian Wilhelmi; University of Karlsruhe
  * Copyright 2001 Hans Breuer
  *
+ * SPDX-License-Identifier: LGPL-2.1-or-later
+ *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
  * License as published by the Free Software Foundation; either
@@ -354,7 +356,7 @@ g_private_get_impl (GPrivate *key)
             }
 
           /* Ditto, due to the unlocked access on the fast path */
-          if (!g_atomic_pointer_compare_and_exchange (&key->p, NULL, impl))
+          if (!g_atomic_pointer_compare_and_exchange (&key->p, NULL, GUINT_TO_POINTER (impl)))
             g_thread_abort (0, "g_private_get_impl(2)");
         }
       LeaveCriticalSection (&g_private_lock);

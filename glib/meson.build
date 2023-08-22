@@ -1,5 +1,6 @@
 glibconfig_h = configure_file(input : 'glibconfig.h.in', output : 'glibconfig.h',
   install_dir : join_paths(get_option('libdir'), 'glib-2.0/include'),
+  install_tag : 'devel',
   configuration : glibconfig_conf)
 
 subdir('libcharset')
@@ -8,12 +9,12 @@ subdir('libcharset')
 libsysprof_capture_dep = dependency('sysprof-capture-4', version: '>= 3.38.0',
   required: get_option('sysprof'),
   default_options: [
-    'enable_examples=false',
-    'enable_gtk=false',
-    'enable_tests=false',
-    'enable_tools=false',
+    'examples=false',
+    'gtk=false',
+    'tests=false',
+    'tools=false',
     'libsysprof=false',
-    'with_sysprofd=none',
+    'sysprofd=none',
     'help=false',
   ],
   fallback: ['sysprof', 'libsysprof_capture_dep'],
@@ -336,6 +337,10 @@ else
   platform_deps = []
 endif
 
+if host_system == 'linux'
+  glib_sources += files('gjournal-private.c')
+endif
+
 if glib_have_cocoa
   glib_sources += files('gosxutils.m')
   framework_dep = dependency('appleframeworks', modules : ['Foundation', 'CoreFoundation', 'AppKit'])
@@ -357,13 +362,13 @@ else
   glib_dtrace_hdr = []
 endif
 
-pcre_static_args = []
+pcre2_static_args = []
 
-if use_pcre_static_flag
-  pcre_static_args = ['-DPCRE_STATIC']
+if use_pcre2_static_flag
+  pcre2_static_args = ['-DPCRE2_STATIC']
 endif
 
-glib_c_args = ['-DG_LOG_DOMAIN="GLib"', '-DGLIB_COMPILATION'] + pcre_static_args + glib_hidden_visibility_args
+glib_c_args = ['-DG_LOG_DOMAIN="GLib"', '-DGLIB_COMPILATION'] + pcre2_static_args + glib_hidden_visibility_args
 libglib = library('glib-2.0',
   glib_dtrace_obj, glib_dtrace_hdr,
   sources : [deprecated_sources, glib_sources],
@@ -375,7 +380,7 @@ libglib = library('glib-2.0',
   link_args : [noseh_link_args, glib_link_flags, win32_ldflags],
   include_directories : configinc,
   link_with: [charset_lib, gnulib_lib],
-  dependencies : [pcre, thread_dep, librt] + libintl_deps + libiconv + platform_deps + [gnulib_libm_dependency, libm] + [libsysprof_capture_dep],
+  dependencies : [pcre2, thread_dep, librt] + libintl_deps + libiconv + platform_deps + [gnulib_libm_dependency, libm] + [libsysprof_capture_dep],
   c_args : glib_c_args,
   objc_args : glib_c_args,
 )
@@ -401,17 +406,14 @@ pkg.generate(libglib,
   name : 'GLib',
   description : 'C Utility Library',
 )
-
-if meson.version().version_compare('>=0.54.0')
-  meson.override_dependency('glib-2.0', libglib_dep)
-endif
+meson.override_dependency('glib-2.0', libglib_dep)
 
 # On Windows, glib needs a spawn helper for g_spawn* API
 if host_system == 'windows'
   if host_machine.cpu_family() == 'x86'
     executable('gspawn-win32-helper', 'gspawn-win32-helper.c',
       install : true,
-      gui_app : true,
+      win_subsystem : 'windows',
       include_directories : configinc,
       dependencies : [libglib_dep])
     executable('gspawn-win32-helper-console', 'gspawn-win32-helper.c',
@@ -422,7 +424,7 @@ if host_system == 'windows'
   else
     executable('gspawn-win64-helper', 'gspawn-win32-helper.c',
       install : true,
-      gui_app : true,
+      win_subsystem : 'windows',
       include_directories : configinc,
       dependencies : [libglib_dep])
     executable('gspawn-win64-helper-console', 'gspawn-win32-helper.c',
@@ -434,6 +436,7 @@ if host_system == 'windows'
 else
   gtester = executable('gtester', 'gtester.c',
     install : true,
+    install_tag : 'bin-devel',
     c_args : ['-UG_DISABLE_ASSERT'],
     include_directories : configinc,
     dependencies : [libglib_dep])
@@ -446,18 +449,20 @@ configure_file(
   input: 'gtester-report.in',
   output: 'gtester-report',
   install_dir: get_option('bindir'),
+  install_tag : 'bin-devel',
   configuration: report_conf,
   install_mode: 'rwxr-xr-x'
 )
 
-install_data('glib_gdb.py', install_dir : join_paths(glib_pkgdatadir, 'gdb'))
+install_data('glib_gdb.py',
+  install_dir : glib_pkgdatadir / 'gdb',
+  install_tag : 'devel',
+)
 
 # This is needed to make gdb find glib_gdb.py
-if meson.version().version_compare('>=0.58')
-  env = environment()
-  env.prepend('PYTHONPATH', meson.current_source_dir())
-  meson.add_devenv(env)
-endif
+env = environment()
+env.prepend('PYTHONPATH', meson.current_source_dir())
+meson.add_devenv(env)
 
 gdb_conf = configuration_data()
 gdb_conf.set('datadir', glib_datadir)
@@ -479,6 +484,7 @@ configure_file(
   output: 'libglib-2.0.so.@0@-gdb.py'.format(library_version),
   configuration: gdb_conf,
   install_dir: gdb_install_dir,
+  install_tag: 'devel',
   install: gdb_install,
 )
 
@@ -487,6 +493,7 @@ if enable_systemtap
     output : '@0@.stp'.format(libglib.full_path().split('/').get(-1)),
     configuration : stp_cdata,
     install_dir : tapset_install_dir,
+    install_tag : 'systemtap',
   )
 endif
 

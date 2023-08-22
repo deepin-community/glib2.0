@@ -523,7 +523,7 @@ test_debug (void)
       g_assert_cmpint (res, ==, 0);
       return;
     }
-  g_test_trap_subprocess (NULL, 0, 0);
+  g_test_trap_subprocess (NULL, 0, G_TEST_SUBPROCESS_DEFAULT);
   g_test_trap_assert_passed ();
   g_test_trap_assert_stderr ("*Supported debug values: key1 key2 key3 all help*");
 }
@@ -553,7 +553,7 @@ test_codeset2 (void)
       g_assert_cmpstr (c, ==, "UTF-8");
       return;
     }
-  g_test_trap_subprocess (NULL, 0, 0);
+  g_test_trap_subprocess (NULL, 0, G_TEST_SUBPROCESS_DEFAULT);
   g_test_trap_assert_passed ();
 }
 
@@ -767,11 +767,10 @@ test_os_info (void)
   g_free (contents);
 }
 
-static gboolean
+static void
 source_test (gpointer data)
 {
   g_assert_not_reached ();
-  return G_SOURCE_REMOVE;
 }
 
 static void
@@ -779,13 +778,13 @@ test_clear_source (void)
 {
   guint id;
 
-  id = g_idle_add (source_test, NULL);
+  id = g_idle_add_once (source_test, NULL);
   g_assert_cmpuint (id, >, 0);
 
   g_clear_handle_id (&id, g_source_remove);
   g_assert_cmpuint (id, ==, 0);
 
-  id = g_timeout_add (100, source_test, NULL);
+  id = g_timeout_add_once (100, source_test, NULL);
   g_assert_cmpuint (id, >, 0);
 
   g_clear_handle_id (&id, g_source_remove);
@@ -957,7 +956,8 @@ test_aligned_mem (void)
       if (g_test_undefined ()) \
         { \
           g_test_message (msg); \
-          g_test_trap_subprocess ("/utils/aligned-mem/subprocess/" #name, 0, 0); \
+          g_test_trap_subprocess ("/utils/aligned-mem/subprocess/" #name, 0, \
+                                  G_TEST_SUBPROCESS_DEFAULT); \
           g_test_trap_assert_failed (); \
         } \
     } while (0)
@@ -1025,7 +1025,7 @@ test_atexit (void)
       g_atexit (atexit_func);
       return;
     }
-  g_test_trap_subprocess (NULL, 0, 0);
+  g_test_trap_subprocess (NULL, 0, G_TEST_SUBPROCESS_DEFAULT);
   g_test_trap_assert_passed ();
   g_test_trap_assert_stdout ("*atexit called*");
 }

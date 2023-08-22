@@ -749,9 +749,7 @@ test_mkdir_with_parents (void)
   g_assert_cmpint (g_mkdir_with_parents ("./test", 0), ==, 0);
   g_remove ("./test");
 
-#ifdef G_OS_WIN32
-  g_assert_cmpint (g_mkdir_with_parents ("\\Windows\\b\\c", 0), ==, -1);
-#else
+#ifndef G_OS_WIN32
   g_assert_cmpint (g_mkdir_with_parents ("/usr/b/c", 0), ==, -1);
   /* EPERM may be returned if the filesystem as a whole is read-only */
   if (errno != EPERM)
@@ -932,8 +930,14 @@ test_format_size_for_display (void)
   check_string (g_format_size (1000ULL * 1000 * 1000 * 1000 * 1000 * 1000), "1.0\302\240EB");
 
   check_string (g_format_size_full (0, G_FORMAT_SIZE_IEC_UNITS), "0 bytes");
+  check_string (g_format_size_full (0, G_FORMAT_SIZE_IEC_UNITS | G_FORMAT_SIZE_ONLY_VALUE), "0");
+  check_string (g_format_size_full (0, G_FORMAT_SIZE_IEC_UNITS | G_FORMAT_SIZE_ONLY_UNIT), "bytes");
   check_string (g_format_size_full (1, G_FORMAT_SIZE_IEC_UNITS), "1 byte");
+  check_string (g_format_size_full (1, G_FORMAT_SIZE_IEC_UNITS | G_FORMAT_SIZE_ONLY_VALUE), "1");
+  check_string (g_format_size_full (1, G_FORMAT_SIZE_IEC_UNITS | G_FORMAT_SIZE_ONLY_UNIT), "byte");
   check_string (g_format_size_full (2, G_FORMAT_SIZE_IEC_UNITS), "2 bytes");
+  check_string (g_format_size_full (2, G_FORMAT_SIZE_IEC_UNITS | G_FORMAT_SIZE_ONLY_VALUE), "2");
+  check_string (g_format_size_full (2, G_FORMAT_SIZE_IEC_UNITS | G_FORMAT_SIZE_ONLY_UNIT), "bytes");
 
   check_string (g_format_size_full (2048ULL, G_FORMAT_SIZE_IEC_UNITS), "2.0\302\240KiB");
   check_string (g_format_size_full (2048ULL * 1024, G_FORMAT_SIZE_IEC_UNITS), "2.0\302\240MiB");
@@ -945,11 +949,19 @@ test_format_size_for_display (void)
   check_string (g_format_size_full (238472938, G_FORMAT_SIZE_IEC_UNITS), "227.4\302\240MiB");
   check_string (g_format_size_full (238472938, G_FORMAT_SIZE_DEFAULT), "238.5\302\240MB");
   check_string (g_format_size_full (238472938, G_FORMAT_SIZE_LONG_FORMAT), "238.5\302\240MB (238472938 bytes)");
+  check_string (g_format_size_full (238472938, G_FORMAT_SIZE_IEC_UNITS | G_FORMAT_SIZE_ONLY_VALUE), "227.4");
+  check_string (g_format_size_full (238472938, G_FORMAT_SIZE_IEC_UNITS | G_FORMAT_SIZE_ONLY_UNIT), "MiB");
 
 
   check_string (g_format_size_full (0, G_FORMAT_SIZE_BITS), "0 bits");
+  check_string (g_format_size_full (0, G_FORMAT_SIZE_BITS | G_FORMAT_SIZE_ONLY_VALUE), "0");
+  check_string (g_format_size_full (0, G_FORMAT_SIZE_BITS | G_FORMAT_SIZE_ONLY_UNIT), "bits");
   check_string (g_format_size_full (1, G_FORMAT_SIZE_BITS), "1 bit");
+  check_string (g_format_size_full (1, G_FORMAT_SIZE_BITS | G_FORMAT_SIZE_ONLY_VALUE), "1");
+  check_string (g_format_size_full (1, G_FORMAT_SIZE_BITS | G_FORMAT_SIZE_ONLY_UNIT), "bit");
   check_string (g_format_size_full (2, G_FORMAT_SIZE_BITS), "2 bits");
+  check_string (g_format_size_full (2, G_FORMAT_SIZE_BITS | G_FORMAT_SIZE_ONLY_VALUE), "2");
+  check_string (g_format_size_full (2, G_FORMAT_SIZE_BITS | G_FORMAT_SIZE_ONLY_UNIT), "bits");
 
   check_string (g_format_size_full (2000ULL, G_FORMAT_SIZE_BITS), "2.0\302\240kb");
   check_string (g_format_size_full (2000ULL * 1000, G_FORMAT_SIZE_BITS), "2.0\302\240Mb");
@@ -960,11 +972,19 @@ test_format_size_for_display (void)
 
   check_string (g_format_size_full (238472938, G_FORMAT_SIZE_BITS), "238.5\302\240Mb");
   check_string (g_format_size_full (238472938, G_FORMAT_SIZE_BITS | G_FORMAT_SIZE_LONG_FORMAT), "238.5\302\240Mb (238472938 bits)");
+  check_string (g_format_size_full (238472938, G_FORMAT_SIZE_BITS | G_FORMAT_SIZE_ONLY_VALUE), "238.5");
+  check_string (g_format_size_full (238472938, G_FORMAT_SIZE_BITS | G_FORMAT_SIZE_ONLY_UNIT), "Mb");
 
 
   check_string (g_format_size_full (0, G_FORMAT_SIZE_BITS | G_FORMAT_SIZE_IEC_UNITS), "0 bits");
+  check_string (g_format_size_full (0, G_FORMAT_SIZE_BITS | G_FORMAT_SIZE_IEC_UNITS | G_FORMAT_SIZE_ONLY_VALUE), "0");
+  check_string (g_format_size_full (0, G_FORMAT_SIZE_BITS | G_FORMAT_SIZE_IEC_UNITS | G_FORMAT_SIZE_ONLY_UNIT), "bits");
   check_string (g_format_size_full (1, G_FORMAT_SIZE_BITS | G_FORMAT_SIZE_IEC_UNITS), "1 bit");
+  check_string (g_format_size_full (1, G_FORMAT_SIZE_BITS | G_FORMAT_SIZE_IEC_UNITS | G_FORMAT_SIZE_ONLY_VALUE), "1");
+  check_string (g_format_size_full (1, G_FORMAT_SIZE_BITS | G_FORMAT_SIZE_IEC_UNITS | G_FORMAT_SIZE_ONLY_UNIT), "bit");
   check_string (g_format_size_full (2, G_FORMAT_SIZE_BITS | G_FORMAT_SIZE_IEC_UNITS), "2 bits");
+  check_string (g_format_size_full (2, G_FORMAT_SIZE_BITS | G_FORMAT_SIZE_IEC_UNITS | G_FORMAT_SIZE_ONLY_VALUE), "2");
+  check_string (g_format_size_full (2, G_FORMAT_SIZE_BITS | G_FORMAT_SIZE_IEC_UNITS | G_FORMAT_SIZE_ONLY_UNIT), "bits");
 
   check_string (g_format_size_full (2048ULL, G_FORMAT_SIZE_BITS | G_FORMAT_SIZE_IEC_UNITS), "2.0\302\240Kib");
   check_string (g_format_size_full (2048ULL * 1024, G_FORMAT_SIZE_BITS | G_FORMAT_SIZE_IEC_UNITS), "2.0\302\240Mib");
@@ -975,6 +995,8 @@ test_format_size_for_display (void)
 
   check_string (g_format_size_full (238472938, G_FORMAT_SIZE_BITS | G_FORMAT_SIZE_IEC_UNITS), "227.4\302\240Mib");
   check_string (g_format_size_full (238472938, G_FORMAT_SIZE_BITS | G_FORMAT_SIZE_IEC_UNITS | G_FORMAT_SIZE_LONG_FORMAT), "227.4\302\240Mib (238472938 bits)");
+  check_string (g_format_size_full (238472938, G_FORMAT_SIZE_BITS | G_FORMAT_SIZE_IEC_UNITS | G_FORMAT_SIZE_ONLY_VALUE), "227.4");
+  check_string (g_format_size_full (238472938, G_FORMAT_SIZE_BITS | G_FORMAT_SIZE_IEC_UNITS | G_FORMAT_SIZE_ONLY_UNIT), "Mib");
 }
 
 static void
@@ -1400,9 +1422,11 @@ test_get_contents (void)
   GError *error = NULL;
   const gchar *text = "abcdefghijklmnopqrstuvwxyz";
   const gchar *filename = "file-test-get-contents";
+  gsize bytes_written;
 
   f = g_fopen (filename, "w");
-  fwrite (text, 1, strlen (text), f);
+  bytes_written = fwrite (text, 1, strlen (text), f);
+  g_assert_cmpint (bytes_written, ==, strlen (text));
   fclose (f);
 
   if (g_test_undefined ())
@@ -1425,6 +1449,7 @@ test_get_contents (void)
   g_assert_no_error (error);
 
   g_free (contents);
+  g_remove (filename);
 }
 
 static void
@@ -1446,7 +1471,7 @@ test_file_test (void)
 
   fd = g_file_open_tmp (NULL, &name, &error);
   g_assert_no_error (error);
-  write (fd, "a", 1);
+  g_assert_cmpint (write (fd, "a", 1), ==, 1);
   g_assert_cmpint (g_fsync (fd), ==, 0);
   close (fd);
 
@@ -1454,7 +1479,7 @@ test_file_test (void)
   result = g_file_test (name, G_FILE_TEST_IS_SYMLINK);
   g_assert_false (result);
 
-  symlink (name, "symlink");
+  g_assert_no_errno (symlink (name, "symlink"));
   result = g_file_test ("symlink", G_FILE_TEST_IS_SYMLINK);
   g_assert_true (result);
   unlink ("symlink");
@@ -1477,7 +1502,7 @@ test_set_contents (void)
 
   fd = g_file_open_tmp (NULL, &name, &error);
   g_assert_no_error (error);
-  write (fd, "a", 1);
+  g_assert_cmpint (write (fd, "a", 1), ==, 1);
   g_assert_cmpint (g_fsync (fd), ==, 0);
   close (fd);
 
@@ -1570,7 +1595,7 @@ test_set_contents_full (void)
 
                 fd = g_file_open_tmp (NULL, &file_name, &error);
                 g_assert_no_error (error);
-                write (fd, "a", 1);
+                g_assert_cmpint (write (fd, "a", 1), ==, 1);
                 g_assert_no_errno (g_fsync (fd));
                 close (fd);
 
@@ -1703,7 +1728,7 @@ test_set_contents_full_read_only_file (void)
    * existing file permissions. */
   fd = g_file_open_tmp (NULL, &file_name, &error);
   g_assert_no_error (error);
-  write (fd, "a", 1);
+  g_assert_cmpint (write (fd, "a", 1), ==, 1);
   g_assert_no_errno (g_fsync (fd));
   close (fd);
   g_assert_no_errno (g_chmod (file_name, 0400)); /* S_IREAD */
@@ -1777,7 +1802,7 @@ test_set_contents_full_read_only_directory (void)
       file_name = g_build_filename (dir_name, "file", NULL);
       fd = g_open (file_name, O_CREAT | O_RDWR, 0644);
       g_assert_cmpint (fd, >=, 0);
-      write (fd, "a", 1);
+      g_assert_cmpint (write (fd, "a", 1), ==, 1);
       g_assert_no_errno (g_fsync (fd));
       close (fd);
 
@@ -1833,6 +1858,7 @@ test_read_link (void)
       g_test_expect_message (G_LOG_DOMAIN, G_LOG_LEVEL_CRITICAL,
                              "*assertion*!= NULL*");
       newpath = g_file_read_link (NULL, &error);
+      g_assert_null (newpath);
       g_test_assert_expected_messages ();
     }
 
@@ -1871,8 +1897,8 @@ test_read_link (void)
   g_assert_nonnull (file);
   fclose (file);
 
-  g_assert_cmpint (symlink (filename, link1), ==, 0);
-  g_assert_cmpint (symlink (link1, link2), ==, 0);
+  g_assert_no_errno (symlink (filename, link1));
+  g_assert_no_errno (symlink (link1, link2));
 
   error = NULL;
   data = g_file_read_link (link1, &error);
