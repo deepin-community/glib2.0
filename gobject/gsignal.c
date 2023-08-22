@@ -1,6 +1,8 @@
 /* GObject - GLib Type, Object, Parameter and Signal Library
  * Copyright (C) 2000-2001 Red Hat, Inc.
  *
+ * SPDX-License-Identifier: LGPL-2.1-or-later
+ *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
  * License as published by the Free Software Foundation; either
@@ -1214,12 +1216,17 @@ g_signal_parse_name (const gchar *detailed_signal,
   
   SIGNAL_LOCK ();
   signal_id = signal_parse_name (detailed_signal, itype, &detail, force_detail_quark);
-  SIGNAL_UNLOCK ();
 
   node = signal_id ? LOOKUP_SIGNAL_NODE (signal_id) : NULL;
+
   if (!node || node->destroyed ||
       (detail && !(node->flags & G_SIGNAL_DETAILED)))
-    return FALSE;
+    {
+      SIGNAL_UNLOCK ();
+      return FALSE;
+    }
+
+  SIGNAL_UNLOCK ();
 
   if (signal_id_p)
     *signal_id_p = signal_id;
@@ -1547,7 +1554,7 @@ g_signal_new (const gchar	 *signal_name,
  * an object definition, instead the function pointer is passed
  * directly and can be overridden by derived classes with
  * g_signal_override_class_closure() or
- * g_signal_override_class_handler()and chained to with
+ * g_signal_override_class_handler() and chained to with
  * g_signal_chain_from_overridden() or
  * g_signal_chain_from_overridden_handler().
  *
@@ -2422,9 +2429,9 @@ g_signal_connect_closure_by_id (gpointer  instance,
 	  Handler *handler = handler_new (signal_id, instance, after);
 
           if (G_TYPE_IS_OBJECT (node->itype))
-            _g_object_set_has_signal_handler ((GObject *)instance);
+            _g_object_set_has_signal_handler ((GObject *) instance, signal_id);
 
-	  handler_seq_no = handler->sequential_number;
+          handler_seq_no = handler->sequential_number;
 	  handler->detail = detail;
 	  handler->closure = g_closure_ref (closure);
 	  g_closure_sink (closure);
@@ -2489,9 +2496,9 @@ g_signal_connect_closure (gpointer     instance,
 	  Handler *handler = handler_new (signal_id, instance, after);
 
           if (G_TYPE_IS_OBJECT (node->itype))
-            _g_object_set_has_signal_handler ((GObject *)instance);
+            _g_object_set_has_signal_handler ((GObject *) instance, signal_id);
 
-	  handler_seq_no = handler->sequential_number;
+          handler_seq_no = handler->sequential_number;
 	  handler->detail = detail;
 	  handler->closure = g_closure_ref (closure);
 	  g_closure_sink (closure);
@@ -2593,7 +2600,7 @@ g_signal_connect_data (gpointer       instance,
 	  Handler *handler = handler_new (signal_id, instance, after);
 
           if (G_TYPE_IS_OBJECT (node->itype))
-            _g_object_set_has_signal_handler ((GObject *)instance);
+            _g_object_set_has_signal_handler ((GObject *) instance, signal_id);
 
 	  handler_seq_no = handler->sequential_number;
 	  handler->detail = detail;
@@ -2616,6 +2623,10 @@ g_signal_connect_data (gpointer       instance,
   return handler_seq_no;
 }
 
+static void
+signal_handler_block_unlocked (gpointer instance,
+                               gulong   handler_id);
+
 /**
  * g_signal_handler_block:
  * @instance: (type GObject.Object): The instance to block the signal handler of.
@@ -2634,12 +2645,20 @@ void
 g_signal_handler_block (gpointer instance,
                         gulong   handler_id)
 {
-  Handler *handler;
-  
   g_return_if_fail (G_TYPE_CHECK_INSTANCE (instance));
   g_return_if_fail (handler_id > 0);
   
   SIGNAL_LOCK ();
+  signal_handler_block_unlocked (instance, handler_id);
+  SIGNAL_UNLOCK ();
+}
+
+static void
+signal_handler_block_unlocked (gpointer instance,
+                               gulong   handler_id)
+{
+  Handler *handler;
+
   handler = handler_lookup (instance, handler_id, NULL, NULL);
   if (handler)
     {
@@ -2651,8 +2670,11 @@ g_signal_handler_block (gpointer instance,
     }
   else
     g_warning ("%s: instance '%p' has no handler with id '%lu'", G_STRLOC, instance, handler_id);
-  SIGNAL_UNLOCK ();
 }
+
+static void
+signal_handler_unblock_unlocked (gpointer instance,
+                                 gulong   handler_id);
 
 /**
  * g_signal_handler_unblock:
@@ -2677,12 +2699,20 @@ void
 g_signal_handler_unblock (gpointer instance,
                           gulong   handler_id)
 {
-  Handler *handler;
-  
   g_return_if_fail (G_TYPE_CHECK_INSTANCE (instance));
   g_return_if_fail (handler_id > 0);
   
   SIGNAL_LOCK ();
+  signal_handler_unblock_unlocked (instance, handler_id);
+  SIGNAL_UNLOCK ();
+}
+
+static void
+signal_handler_unblock_unlocked (gpointer instance,
+                                 gulong   handler_id)
+{
+  Handler *handler;
+
   handler = handler_lookup (instance, handler_id, NULL, NULL);
   if (handler)
     {
@@ -2693,8 +2723,11 @@ g_signal_handler_unblock (gpointer instance,
     }
   else
     g_warning ("%s: instance '%p' has no handler with id '%lu'", G_STRLOC, instance, handler_id);
-  SIGNAL_UNLOCK ();
 }
+
+static void
+signal_handler_disconnect_unlocked (gpointer instance,
+                                    gulong   handler_id);
 
 /**
  * g_signal_handler_disconnect:
@@ -2712,12 +2745,20 @@ void
 g_signal_handler_disconnect (gpointer instance,
                              gulong   handler_id)
 {
-  Handler *handler;
-  
   g_return_if_fail (G_TYPE_CHECK_INSTANCE (instance));
   g_return_if_fail (handler_id > 0);
   
   SIGNAL_LOCK ();
+  signal_handler_disconnect_unlocked (instance, handler_id);
+  SIGNAL_UNLOCK ();
+}
+
+static void
+signal_handler_disconnect_unlocked (gpointer instance,
+                                    gulong   handler_id)
+{
+  Handler *handler;
+
   handler = handler_lookup (instance, handler_id, 0, 0);
   if (handler)
     {
@@ -2729,7 +2770,6 @@ g_signal_handler_disconnect (gpointer instance,
     }
   else
     g_warning ("%s: instance '%p' has no handler with id '%lu'", G_STRLOC, instance, handler_id);
-  SIGNAL_UNLOCK ();
 }
 
 /**
@@ -2860,33 +2900,31 @@ g_signal_handler_find (gpointer         instance,
   return handler_seq_no;
 }
 
+typedef void (*CallbackHandlerFunc) (gpointer instance, gulong handler_seq_no);
+
 static guint
-signal_handlers_foreach_matched_R (gpointer         instance,
-				   GSignalMatchType mask,
-				   guint            signal_id,
-				   GQuark           detail,
-				   GClosure        *closure,
-				   gpointer         func,
-				   gpointer         data,
-				   void		  (*callback) (gpointer instance,
-							       gulong   handler_seq_no))
+signal_handlers_foreach_matched_unlocked_R (gpointer             instance,
+                                            GSignalMatchType     mask,
+                                            guint                signal_id,
+                                            GQuark               detail,
+                                            GClosure            *closure,
+                                            gpointer             func,
+                                            gpointer             data,
+                                            CallbackHandlerFunc  callback)
 {
   HandlerMatch *mlist;
   guint n_handlers = 0;
-  
+
   mlist = handlers_find (instance, mask, signal_id, detail, closure, func, data, FALSE);
   while (mlist)
     {
       n_handlers++;
       if (mlist->handler->sequential_number)
-	{
-	  SIGNAL_UNLOCK ();
-	  callback (instance, mlist->handler->sequential_number);
-	  SIGNAL_LOCK ();
-	}
+        callback (instance, mlist->handler->sequential_number);
+
       mlist = handler_match_free1_R (mlist, instance);
     }
-  
+
   return n_handlers;
 }
 
@@ -2928,9 +2966,10 @@ g_signal_handlers_block_matched (gpointer         instance,
   if (mask & (G_SIGNAL_MATCH_CLOSURE | G_SIGNAL_MATCH_FUNC | G_SIGNAL_MATCH_DATA))
     {
       SIGNAL_LOCK ();
-      n_handlers = signal_handlers_foreach_matched_R (instance, mask, signal_id, detail,
-						      closure, func, data,
-						      g_signal_handler_block);
+      n_handlers =
+        signal_handlers_foreach_matched_unlocked_R (instance, mask, signal_id, detail,
+                                                    closure, func, data,
+                                                    signal_handler_block_unlocked);
       SIGNAL_UNLOCK ();
     }
   
@@ -2976,9 +3015,10 @@ g_signal_handlers_unblock_matched (gpointer         instance,
   if (mask & (G_SIGNAL_MATCH_CLOSURE | G_SIGNAL_MATCH_FUNC | G_SIGNAL_MATCH_DATA))
     {
       SIGNAL_LOCK ();
-      n_handlers = signal_handlers_foreach_matched_R (instance, mask, signal_id, detail,
-						      closure, func, data,
-						      g_signal_handler_unblock);
+      n_handlers =
+        signal_handlers_foreach_matched_unlocked_R (instance, mask, signal_id, detail,
+                                                    closure, func, data,
+                                                    signal_handler_unblock_unlocked);
       SIGNAL_UNLOCK ();
     }
   
@@ -3024,9 +3064,10 @@ g_signal_handlers_disconnect_matched (gpointer         instance,
   if (mask & (G_SIGNAL_MATCH_CLOSURE | G_SIGNAL_MATCH_FUNC | G_SIGNAL_MATCH_DATA))
     {
       SIGNAL_LOCK ();
-      n_handlers = signal_handlers_foreach_matched_R (instance, mask, signal_id, detail,
-						      closure, func, data,
-						      g_signal_handler_disconnect);
+      n_handlers =
+        signal_handlers_foreach_matched_unlocked_R (instance, mask, signal_id, detail,
+                                                    closure, func, data,
+                                                    signal_handler_disconnect_unlocked);
       SIGNAL_UNLOCK ();
     }
   
@@ -3402,7 +3443,16 @@ g_signal_emit_valist (gpointer instance,
 
 	  if (closure != NULL)
 	    {
+              /*
+               * Coverity doesn’t understand the paired ref/unref here and seems
+               * to ignore the ref, thus reports every call to g_signal_emit()
+               * as causing a double-free. That’s incorrect, but I can’t get a
+               * model file to work for avoiding the false positives, so instead
+               * comment out the ref/unref when doing static analysis.
+               */
+#ifndef __COVERITY__
 	      g_object_ref (instance);
+#endif
 	      _g_closure_invoke_va (closure,
 				    return_accu,
 				    instance,
@@ -3452,8 +3502,11 @@ g_signal_emit_valist (gpointer instance,
 	  
 	  TRACE(GOBJECT_SIGNAL_EMIT_END(signal_id, detail, instance, instance_type));
 
+          /* See comment above paired ref above */
+#ifndef __COVERITY__
           if (closure != NULL)
             g_object_unref (instance);
+#endif
 
 	  return;
 	}

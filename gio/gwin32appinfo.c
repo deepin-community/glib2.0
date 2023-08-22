@@ -3,6 +3,8 @@
  * Copyright (C) 2006-2007 Red Hat, Inc.
  * Copyright (C) 2014 Руслан Ижбулатов
  *
+ * SPDX-License-Identifier: LGPL-2.1-or-later
+ *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
  * License as published by the Free Software Foundation; either
@@ -1742,7 +1744,7 @@ handler_add_verb (gpointer           handler_data1,
 {
   GWin32AppInfoHandler *handler_rec = (GWin32AppInfoHandler *) handler_data1;
   GWin32AppInfoApplication *app_rec = (GWin32AppInfoApplication *) handler_data2;
-  GWin32AppInfoShellVerb *shverb;
+  GWin32AppInfoShellVerb *shverb = NULL;
 
   _verb_lookup (handler_rec->verbs, verb, &shverb);
 
@@ -1788,7 +1790,7 @@ generate_new_verb_name (GPtrArray        *verbs,
                         gchar           **new_displayname)
 {
   gsize counter;
-  GWin32AppInfoShellVerb *shverb;
+  GWin32AppInfoShellVerb *shverb = NULL;
   gsize orig_len = g_utf16_len (verb);
   gsize new_verb_name_len = orig_len + strlen (" ()") + 2 + 1;
   gunichar2 *new_verb_name = g_new (gunichar2, new_verb_name_len);
@@ -1828,7 +1830,7 @@ app_add_verb (gpointer           handler_data1,
   gunichar2 *new_verb = NULL;
   gchar *new_displayname = NULL;
   GWin32AppInfoApplication *app_rec = (GWin32AppInfoApplication *) handler_data2;
-  GWin32AppInfoShellVerb *shverb;
+  GWin32AppInfoShellVerb *shverb = NULL;
 
   _verb_lookup (app_rec->verbs, verb, &shverb);
 
@@ -1899,7 +1901,7 @@ uwp_app_add_verb (GWin32AppInfoApplication *app_rec,
                   const gunichar2          *verb,
                   const gchar              *verb_displayname)
 {
-  GWin32AppInfoShellVerb *shverb;
+  GWin32AppInfoShellVerb *shverb = NULL;
 
   _verb_lookup (app_rec->verbs, verb, &shverb);
 
@@ -1934,7 +1936,7 @@ uwp_handler_add_verb (GWin32AppInfoHandler     *handler_rec,
                       const gchar              *verb_displayname,
                       gboolean                  verb_is_preferred)
 {
-  GWin32AppInfoShellVerb *shverb;
+  GWin32AppInfoShellVerb *shverb = NULL;
 
   _verb_lookup (handler_rec->verbs, verb, &shverb);
 
@@ -2530,8 +2532,8 @@ read_capable_app (const gunichar2 *app_key_path,
 
           while (g_win32_registry_value_iter_next (&iter, TRUE, NULL))
             {
-              gchar *schema_u8;
-              gchar *schema_u8_folded;
+              gchar *schema_u8 = NULL;
+              gchar *schema_u8_folded = NULL;
 
               if ((!g_win32_registry_value_iter_get_value_type (&iter,
                                                                 &value_type,
@@ -2791,18 +2793,18 @@ read_incapable_app (GWin32RegistryKey *incapable_app,
 static void
 read_exeapps (void)
 {
-  GWin32RegistryKey *applications_key;
+  GWin32RegistryKey *local_applications_key;
   GWin32RegistrySubkeyIter app_iter;
 
-  applications_key =
+  local_applications_key =
       g_win32_registry_key_new_w (L"HKEY_CLASSES_ROOT\\Applications", NULL);
 
-  if (applications_key == NULL)
+  if (local_applications_key == NULL)
     return;
 
-  if (!g_win32_registry_subkey_iter_init (&app_iter, applications_key, NULL))
+  if (!g_win32_registry_subkey_iter_init (&app_iter, local_applications_key, NULL))
     {
-      g_object_unref (applications_key);
+      g_object_unref (local_applications_key);
       return;
     }
 
@@ -2825,7 +2827,7 @@ read_exeapps (void)
         continue;
 
       incapable_app =
-          g_win32_registry_key_get_child_w (applications_key,
+          g_win32_registry_key_get_child_w (local_applications_key,
                                             app_exe_basename,
                                             NULL);
 
@@ -2841,7 +2843,7 @@ read_exeapps (void)
     }
 
   g_win32_registry_subkey_iter_clear (&app_iter);
-  g_object_unref (applications_key);
+  g_object_unref (local_applications_key);
 }
 
 /* Iterates over subkeys of HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\FileExts\\
@@ -3091,7 +3093,7 @@ link_handlers_to_unregistered_apps (void)
               GOT_SH_INFO,
               ERROR_GETTING_SH_INFO,
             } have_stat_handler = SH_UNKNOWN;
-          GWin32PrivateStat handler_verb_exec_info;
+          GWin32PrivateStat handler_verb_exec_info = { 0 };
 
           handler_verb = _verb_idx (handler->verbs, vi);
 
@@ -3365,7 +3367,7 @@ uwp_package_cb (gpointer         user_data,
   gchar *app_user_model_id_u8;
   gchar *app_user_model_id_u8_folded;
   GHashTableIter iter;
-  GWin32AppInfoHandler *ext;
+  GWin32AppInfoHandler *ext_handler;
   GWin32AppInfoHandler *url;
 
   if (!g_utf16_to_utf8_and_fold (app_user_model_id,
@@ -3457,18 +3459,18 @@ uwp_package_cb (gpointer         user_data,
   /* Pile up all handler verbs into the app too,
    * for cases when we don't have a ref to a handler.
    */
-  while (g_hash_table_iter_next (&iter, NULL, (gpointer *) &ext))
+  while (g_hash_table_iter_next (&iter, NULL, (gpointer *) &ext_handler))
     {
       guint i_hverb;
 
-      if (!ext)
+      if (!ext_handler)
         continue;
 
-      for (i_hverb = 0; i_hverb < ext->verbs->len; i_hverb++)
+      for (i_hverb = 0; i_hverb < ext_handler->verbs->len; i_hverb++)
         {
           GWin32AppInfoShellVerb *handler_verb;
 
-          handler_verb = _verb_idx (ext->verbs, i_hverb);
+          handler_verb = _verb_idx (ext_handler->verbs, i_hverb);
           uwp_app_add_verb (app, handler_verb->verb_name, handler_verb->verb_displayname);
           if (handler_verb->app == NULL && handler_verb->is_uwp)
             handler_verb->app = g_object_ref (app);
@@ -3476,8 +3478,8 @@ uwp_package_cb (gpointer         user_data,
     }
 
   if (app->verbs->len == 0 && extensions_considered > 0)
-    g_warning ("Unexpectedly, UWP app `%S' (AUMId `%s') supports %d extensions but has no verbs",
-               full_package_name, app_user_model_id_u8, extensions_considered);
+    g_debug ("Unexpectedly, UWP app `%S' (AUMId `%s') supports %d extensions but has no verbs",
+             full_package_name, app_user_model_id_u8, extensions_considered);
 
   for (i = 0; i < supported_protocols->len; i++)
     {
@@ -4332,10 +4334,25 @@ expand_macro_single (char macro, file_or_uri *obj)
     case '8':
     case '9':
       /* TODO: handle 'l' and 'd' differently (longname and desktop name) */
-      if (obj->uri)
-        result = g_strdup (obj->uri);
-      else if (obj->file)
-        result = g_strdup (obj->file);
+      if (obj->file)
+        {
+          result = g_strdup (obj->file);
+        }
+      else if (obj->uri)
+        {
+          const char *prefix = "file:///";
+          const size_t prefix_len = strlen (prefix);
+
+          if (g_str_has_prefix (obj->uri, prefix) == 0 && obj->uri[prefix_len] != 0)
+            {
+              GFile *file = g_file_new_for_uri (obj->uri);
+              result = g_file_get_path (file);
+              g_object_unref (file);
+            }
+
+          if (!result)
+            result = g_strdup (obj->uri);
+        }
       break;
     case 'u':
     case 'U':
@@ -4453,7 +4470,7 @@ Legend: (from http://msdn.microsoft.com/en-us/library/windows/desktop/cc144101%2
         {
           gint i;
           GList *o;
-          gint n;
+          gint n = 0;
 
           switch (macro)
             {
@@ -4683,43 +4700,335 @@ get_appath_for_exe (const gchar *exe_basename)
   return appath;
 }
 
+/* GDesktopAppInfo::launch_uris_async emits all GAppLaunchContext's signals
+ * on the main thread.
+ *
+ * We do the same: when g_win32_app_info_launch_uris_impl has a non-NULL
+ * from_task argument we schedule the signal emissions on the main loop,
+ * taking care not to emit signals after the task itself is completed
+ * (see g_task_get_completed).
+ */
+
+typedef struct {
+  GAppLaunchContext *context;  /* (owned) */
+  GWin32AppInfo *info;  /* (owned) */
+} EmitLaunchStartedData;
+
+static void
+emit_launch_started_data_free (EmitLaunchStartedData *data)
+{
+  g_clear_object (&data->context);
+  g_clear_object (&data->info);
+  g_free (data);
+}
+
+static gboolean
+emit_launch_started_cb (EmitLaunchStartedData *data)
+{
+  g_signal_emit_by_name (data->context, "launch-started", data->info, NULL);
+  return G_SOURCE_REMOVE;
+}
+
+static void
+emit_launch_started (GAppLaunchContext *context,
+                     GWin32AppInfo     *info,
+                     GTask             *from_task)
+{
+  if (!context || !info)
+    return;
+
+  if (!from_task)
+    g_signal_emit_by_name (context, "launch-started", info, NULL);
+  else
+    {
+      EmitLaunchStartedData *data;
+
+      data = g_new (EmitLaunchStartedData, 1);
+      data->context = g_object_ref (context);
+      data->info = g_object_ref (info);
+
+      g_main_context_invoke_full (g_task_get_context (from_task),
+                                  g_task_get_priority (from_task),
+                                  G_SOURCE_FUNC (emit_launch_started_cb),
+                                  g_steal_pointer (&data),
+                                  (GDestroyNotify) emit_launch_started_data_free);
+    }
+}
+
+typedef struct {
+  GAppLaunchContext *context;  /* (owned) */
+  GWin32AppInfo *info;  /* (owned) */
+  GPid pid;  /* (owned) */
+} EmitLaunchedData;
+
+static void
+emit_launched_data_free (EmitLaunchedData *data)
+{
+  g_clear_object (&data->context);
+  g_clear_object (&data->info);
+  g_spawn_close_pid (data->pid);
+  g_free (data);
+}
+
+static GVariant*
+make_platform_data (GPid pid)
+{
+  GVariantBuilder builder;
+
+  g_variant_builder_init (&builder, G_VARIANT_TYPE_ARRAY);
+  /* pid handles are never bigger than 2^24 as per
+   * https://docs.microsoft.com/en-us/windows/win32/sysinfo/kernel-objects,
+   * so truncating to `int32` is valid.
+   * The gsize cast is to silence a compiler warning
+   * about conversion from pointer to integer of
+   * different size. */
+  g_variant_builder_add (&builder, "{sv}", "pid", g_variant_new_int32 ((gsize) pid));
+
+  return g_variant_ref_sink (g_variant_builder_end (&builder));
+}
+
+static gboolean
+emit_launched_cb (EmitLaunchedData *data)
+{
+  
+  GVariant *platform_data = make_platform_data (data->pid);
+
+  g_signal_emit_by_name (data->context, "launched", data->info, platform_data);
+  g_variant_unref (platform_data);
+
+  return G_SOURCE_REMOVE;
+}
+
+static void
+emit_launched (GAppLaunchContext *context,
+               GWin32AppInfo     *info,
+               GPid              *pid,
+               GTask             *from_task)
+{
+  if (!context || !info)
+    return;
+
+  if (!from_task)
+    {
+      GVariant *platform_data = make_platform_data (*pid);
+      g_signal_emit_by_name (context, "launched", info, platform_data);
+      g_variant_unref (platform_data);
+      g_spawn_close_pid (*pid);
+    }
+  else
+    {
+      EmitLaunchedData *data;
+
+      data = g_new (EmitLaunchedData, 1);
+      data->context = g_object_ref (context);
+      data->info = g_object_ref (info);
+      data->pid = *pid;
+
+      g_main_context_invoke_full (g_task_get_context (from_task),
+                                  g_task_get_priority (from_task),
+                                  G_SOURCE_FUNC (emit_launched_cb),
+                                  g_steal_pointer (&data),
+                                  (GDestroyNotify) emit_launched_data_free);
+    }
+
+  *pid = NULL;
+}
+
+typedef struct {
+  GAppLaunchContext *context;  /* (owned) */
+  GWin32AppInfo *info;  /* (owned) */
+} EmitLaunchFailedData;
+
+static void
+emit_launch_failed_data_free (EmitLaunchFailedData *data)
+{
+  g_clear_object (&data->context);
+  g_clear_object (&data->info);
+  g_free (data);
+}
+
+static gboolean
+emit_launch_failed_cb (EmitLaunchFailedData *data)
+{
+  g_signal_emit_by_name (data->context, "launch-failed", data->info, NULL);
+  return G_SOURCE_REMOVE;
+}
+
+static void
+emit_launch_failed (GAppLaunchContext *context,
+                    GWin32AppInfo     *info,
+                    GTask             *from_task)
+{
+  if (!context || !info)
+    return;
+
+  if (!from_task)
+    g_signal_emit_by_name (context, "launch-failed", info, NULL);
+  else
+    {
+      EmitLaunchFailedData *data;
+
+      data = g_new (EmitLaunchFailedData, 1);
+      data->context = g_object_ref (context);
+      data->info = g_object_ref (info);
+
+      g_main_context_invoke_full (g_task_get_context (from_task),
+                                  g_task_get_priority (from_task),
+                                  G_SOURCE_FUNC (emit_launch_failed_cb),
+                                  g_steal_pointer (&data),
+                                  (GDestroyNotify) emit_launch_failed_data_free);
+    }
+}
 
 static gboolean
 g_win32_app_info_launch_uwp_internal (GWin32AppInfo           *info,
                                       gboolean                 for_files,
                                       IShellItemArray         *items,
                                       GWin32AppInfoShellVerb  *shverb,
+                                      GAppLaunchContext       *launch_context,
+                                      GTask                   *from_task,
                                       GError                 **error)
 {
-  DWORD pid;
   IApplicationActivationManager* paam = NULL;
-  gboolean result = TRUE;
+  gboolean com_initialized = FALSE;
+  gboolean result = FALSE;
+  DWORD process_id = 0;
   HRESULT hr;
+  const wchar_t *app_canonical_name = (const wchar_t *) info->app->canonical_name;
 
-  hr = CoCreateInstance (&CLSID_ApplicationActivationManager, NULL, CLSCTX_INPROC_SERVER, &IID_IApplicationActivationManager, (void **) &paam);
+  /* ApplicationActivationManager threading model is both,
+   * prefer the multithreaded apartment type, as we don't
+   * need anything of the STA here. */
+  hr = CoInitializeEx (NULL, COINIT_MULTITHREADED);
+  if (SUCCEEDED (hr))
+    com_initialized = TRUE;
+  else if (hr != RPC_E_CHANGED_MODE)
+    {
+      g_set_error (error, G_IO_ERROR, G_IO_ERROR_FAILED,
+                   "Failed to initialize the COM support library for the thread: 0x%lx", hr);
+      goto cleanup;
+    }
+
+  /* It's best to instantiate ApplicationActivationManager out-of-proc,
+   * as documented on MSDN:
+   *
+   * An IApplicationActivationManager object creates a thread in its
+   * host process to serve any activated event arguments objects
+   * (LaunchActivatedEventArgs, FileActivatedEventArgs, and Protocol-
+   * ActivatedEventArgs) that are passed to the app. If the calling
+   * process is long-lived, you can create this object in-proc,
+   * based on the assumption that the event arguments will exist long
+   * enough for the target app to use them.
+   * However, if the calling process is spawned only to launch the
+   * target app, it should create the IApplicationActivationManager
+   * object out-of-process, by using CLSCTX_LOCAL_SERVER. This causes
+   * the object to be created in a Dllhost instance that automatically
+   * manages the object's lifetime based on outstanding references to
+   * the activated event argument objects.
+   */
+  hr = CoCreateInstance (&CLSID_ApplicationActivationManager, NULL,
+                         CLSCTX_LOCAL_SERVER,
+                         &IID_IApplicationActivationManager, (void **) &paam);
   if (FAILED (hr))
     {
       g_set_error (error, G_IO_ERROR, G_IO_ERROR_FAILED,
                    "Failed to create ApplicationActivationManager: 0x%lx", hr);
-      return FALSE;
+      goto cleanup;
     }
 
+  emit_launch_started (launch_context, info, from_task);
+
+  /* The Activate methods return a process identifier (PID), so we should consider
+   * those methods as potentially blocking */
   if (items == NULL)
-    hr = IApplicationActivationManager_ActivateApplication (paam, (const wchar_t *) info->app->canonical_name, NULL, AO_NONE, &pid);
+    hr = IApplicationActivationManager_ActivateApplication (paam,
+                                                            app_canonical_name,
+                                                            NULL, AO_NONE,
+                                                            &process_id);
   else if (for_files)
-    hr = IApplicationActivationManager_ActivateForFile (paam, (const wchar_t *) info->app->canonical_name, items, shverb->verb_name, &pid);
+    hr = IApplicationActivationManager_ActivateForFile (paam,
+                                                        app_canonical_name,
+                                                        items, shverb->verb_name,
+                                                        &process_id);
   else
-    hr = IApplicationActivationManager_ActivateForProtocol (paam, (const wchar_t *) info->app->canonical_name, items, &pid);
+    hr = IApplicationActivationManager_ActivateForProtocol (paam,
+                                                            app_canonical_name,
+                                                            items,
+                                                            &process_id);
 
   if (FAILED (hr))
     {
       g_set_error (error, G_IO_ERROR, G_IO_ERROR_FAILED,
                    "The app %s failed to launch: 0x%lx",
                    g_win32_appinfo_application_get_some_name (info->app), hr);
-      result = FALSE;
+
+      emit_launch_failed (launch_context, info, from_task);
+
+      goto cleanup;
+    }
+  else if (launch_context)
+    {
+      DWORD access_rights = 0;
+      HANDLE process_handle = NULL;
+
+      /* Unfortunately, there's a race condition here.
+       * ApplicationActivationManager methods return a process ID, but it
+       * keeps no open HANDLE to the spawned process internally (tested
+       * on Windows 10 21H2). So we cannot guarantee that by the time
+       * OpenProcess is called, process ID still referes to the spawned
+       * process. Anyway hitting such case is extremely unlikely.
+       *
+       * https://docs.microsoft.com/en-us/answers/questions/942879/
+       * iapplicationactivationmanager-race-condition.html
+       *
+       * Maybe we could make use of the WinRT APIs to activate UWP apps,
+       * instead? */
+
+      /* As documented on MSDN, the handle returned by CreateProcess has
+       * PROCESS_ALL_ACCESS rights. First try passing PROCESS_ALL_ACCESS
+       * to have the same access rights as the non-UWP code-path; should
+       * that fail with ERROR_ACCESS_DENIED error code, retry using safe
+       * access rights */
+      access_rights = PROCESS_ALL_ACCESS;
+
+      process_handle = OpenProcess (access_rights, FALSE, process_id);
+
+      if (!process_handle && GetLastError () == ERROR_ACCESS_DENIED)
+        {
+          DWORD access_rights = PROCESS_QUERY_LIMITED_INFORMATION |
+                                SYNCHRONIZE;
+
+          process_handle = OpenProcess (access_rights, FALSE, process_id);
+        }
+
+      if (!process_handle)
+        {
+          g_warning ("OpenProcess failed with error code %" G_GUINT32_FORMAT,
+                     (guint32) GetLastError ());
+        }
+
+      /* Emit the launched signal regardless if we have the process
+       * HANDLE or NULL */
+      emit_launched (launch_context, info, (GPid*) &process_handle, from_task);
+
+      g_spawn_close_pid ((GPid) process_handle);
     }
 
-  IApplicationActivationManager_Release (paam);
+  result = TRUE;
+
+cleanup:
+
+  if (paam)
+    {
+      IApplicationActivationManager_Release (paam);
+      paam = NULL;
+    }
+
+  if (com_initialized)
+    {
+      CoUninitialize ();
+      com_initialized = FALSE;
+    }
 
   return result;
 }
@@ -4732,6 +5041,7 @@ g_win32_app_info_launch_internal (GWin32AppInfo      *info,
                                   IShellItemArray    *items, /* UWP only */
                                   GAppLaunchContext  *launch_context,
                                   GSpawnFlags         spawn_flags,
+                                  GTask              *from_task,
                                   GError            **error)
 {
   gboolean completed = FALSE;
@@ -4740,6 +5050,7 @@ g_win32_app_info_launch_internal (GWin32AppInfo      *info,
   const gchar *command;
   gchar *apppath;
   GWin32AppInfoShellVerb *shverb;
+  GPid pid = NULL;
 
   g_return_val_if_fail (info != NULL, FALSE);
   g_return_val_if_fail (info->app != NULL, FALSE);
@@ -4774,6 +5085,8 @@ g_win32_app_info_launch_internal (GWin32AppInfo      *info,
                                                  for_files,
                                                  items,
                                                  shverb,
+                                                 launch_context,
+                                                 from_task,
                                                  error);
 
   if (launch_context)
@@ -4830,7 +5143,8 @@ g_win32_app_info_launch_internal (GWin32AppInfo      *info,
 
   do
     {
-      GPid pid;
+      if (from_task && g_task_return_error_if_cancelled (from_task))
+        goto out;
 
       if (!expand_application_parameters (info,
                                           command,
@@ -4840,35 +5154,27 @@ g_win32_app_info_launch_internal (GWin32AppInfo      *info,
                                           error))
         goto out;
 
+      emit_launch_started (launch_context, info, from_task);
+
       if (!g_spawn_async (NULL,
                           argv,
                           envp,
-                          spawn_flags,
+                          spawn_flags |
+                          G_SPAWN_DO_NOT_REAP_CHILD,
                           NULL,
                           NULL,
                           &pid,
                           error))
-          goto out;
-
-      if (launch_context != NULL)
         {
-          GVariantBuilder builder;
-          GVariant *platform_data;
+          emit_launch_failed (launch_context, info, from_task);
 
-          g_variant_builder_init (&builder, G_VARIANT_TYPE_ARRAY);
-          /* pid handles are never bigger than 2^24 as per
-           * https://docs.microsoft.com/en-us/windows/win32/sysinfo/kernel-objects,
-           * so truncating to `int32` is valid.
-           * The gsize cast is to silence a compiler warning
-           * about conversion from pointer to integer of
-           * different size. */
-          g_variant_builder_add (&builder, "{sv}", "pid", g_variant_new_int32 ((gsize) pid));
-
-          platform_data = g_variant_ref_sink (g_variant_builder_end (&builder));
-          g_signal_emit_by_name (launch_context, "launched", info, platform_data);
-          g_variant_unref (platform_data);
+          goto out;
         }
+      else if (launch_context)
+        emit_launched (launch_context, info, &pid, from_task);
 
+      g_spawn_close_pid (pid);
+      pid = NULL;
       g_strfreev (argv);
       argv = NULL;
     }
@@ -4876,7 +5182,8 @@ g_win32_app_info_launch_internal (GWin32AppInfo      *info,
 
   completed = TRUE;
 
- out:
+out:
+  g_spawn_close_pid (pid);
   g_strfreev (argv);
   g_strfreev (envp);
 
@@ -4991,14 +5298,18 @@ make_item_array (gboolean   for_files,
         }
 
       hr = SHParseDisplayName (file_or_uri_utf16, NULL, &item_ids[i], 0, NULL);
-      g_free (file_or_uri_utf16);
 
       if (FAILED (hr))
         {
           g_set_error (error, G_IO_ERROR, G_IO_ERROR_FAILED,
-                       "File or URI `%S' cannot be parsed by SHParseDisplayName: 0x%lx", file_or_uri_utf16, hr);
+                       "File or URI `%S' cannot be parsed by SHParseDisplayName: 0x%lx",
+                       file_or_uri_utf16, hr);
+
+          g_free (file_or_uri_utf16);
           break;
         }
+
+      g_free (file_or_uri_utf16);
     }
 
   if (i == count)
@@ -5024,10 +5335,11 @@ make_item_array (gboolean   for_files,
 
 
 static gboolean
-g_win32_app_info_launch_uris (GAppInfo           *appinfo,
-                              GList              *uris,
-                              GAppLaunchContext  *launch_context,
-                              GError            **error)
+g_win32_app_info_launch_uris_impl (GAppInfo           *appinfo,
+                                   GList              *uris,
+                                   GAppLaunchContext  *launch_context,
+                                   GTask              *from_task,
+                                   GError            **error)
 {
   gboolean res = FALSE;
   gboolean do_files;
@@ -5045,7 +5357,7 @@ g_win32_app_info_launch_uris (GAppInfo           *appinfo,
             return res;
         }
 
-      res = g_win32_app_info_launch_internal (info, NULL, FALSE, items, launch_context, 0, error);
+      res = g_win32_app_info_launch_internal (info, NULL, FALSE, items, launch_context, 0, from_task, error);
 
       if (items != NULL)
         IShellItemArray_Release (items);
@@ -5086,11 +5398,86 @@ g_win32_app_info_launch_uris (GAppInfo           *appinfo,
                                           NULL,
                                           launch_context,
                                           G_SPAWN_SEARCH_PATH,
+                                          from_task,
                                           error);
 
   g_list_free_full (objs, free_file_or_uri);
 
   return res;
+}
+
+static gboolean
+g_win32_app_info_launch_uris (GAppInfo           *appinfo,
+                              GList              *uris,
+                              GAppLaunchContext  *launch_context,
+                              GError            **error)
+{
+  return g_win32_app_info_launch_uris_impl (appinfo, uris, launch_context, NULL, error);
+}
+
+typedef struct
+{
+  GList *uris;  /* (element-type utf8) (owned) (nullable) */
+  GAppLaunchContext *context;  /* (owned) (nullable) */
+} LaunchUrisData;
+
+static void
+launch_uris_data_free (LaunchUrisData *data)
+{
+  g_clear_object (&data->context);
+  g_list_free_full (data->uris, g_free);
+  g_free (data);
+}
+
+static void
+launch_uris_async_thread (GTask         *task,
+                          gpointer       source_object,
+                          gpointer       task_data,
+                          GCancellable  *cancellable)
+{
+  GAppInfo *appinfo = G_APP_INFO (source_object);
+  LaunchUrisData *data = task_data;
+  GError *local_error = NULL;
+  gboolean succeeded;
+
+  succeeded = g_win32_app_info_launch_uris_impl (appinfo, data->uris, data->context, task, &local_error);
+  if (succeeded)
+    g_task_return_boolean (task, TRUE);
+  else if (!g_task_had_error (task))
+    g_task_return_error (task, g_steal_pointer (&local_error));
+}
+
+static void
+g_win32_app_info_launch_uris_async (GAppInfo            *appinfo,
+                                    GList               *uris,
+                                    GAppLaunchContext   *context,
+                                    GCancellable        *cancellable,
+                                    GAsyncReadyCallback  callback,
+                                    gpointer             user_data)
+{
+  GTask *task;
+  LaunchUrisData *data;
+
+  task = g_task_new (appinfo, cancellable, callback, user_data);
+  g_task_set_source_tag (task, g_win32_app_info_launch_uris_async);
+
+  data = g_new0 (LaunchUrisData, 1);
+  data->uris = g_list_copy_deep (uris, (GCopyFunc) g_strdup, NULL);
+  g_set_object (&data->context, context);
+  g_task_set_task_data (task, g_steal_pointer (&data), (GDestroyNotify) launch_uris_data_free);
+
+  g_task_run_in_thread (task, launch_uris_async_thread);
+  g_object_unref (task);
+}
+
+static gboolean
+g_win32_app_info_launch_uris_finish (GAppInfo *appinfo,
+                                     GAsyncResult *result,
+                                     GError **error)
+{
+  g_return_val_if_fail (g_task_is_valid (result, appinfo), FALSE);
+
+  return g_task_propagate_boolean (G_TASK (result), error);
 }
 
 static gboolean
@@ -5124,7 +5511,7 @@ g_win32_app_info_launch (GAppInfo           *appinfo,
             return res;
         }
 
-      res = g_win32_app_info_launch_internal (info, NULL, TRUE, items, launch_context, 0, error);
+      res = g_win32_app_info_launch_internal (info, NULL, TRUE, items, launch_context, 0, NULL, error);
 
       if (items != NULL)
         IShellItemArray_Release (items);
@@ -5156,6 +5543,7 @@ g_win32_app_info_launch (GAppInfo           *appinfo,
                                           NULL,
                                           launch_context,
                                           G_SPAWN_SEARCH_PATH,
+                                          NULL,
                                           error);
 
   g_list_free_full (objs, free_file_or_uri);
@@ -5238,6 +5626,8 @@ g_win32_app_info_iface_init (GAppInfoIface *iface)
   iface->supports_uris = g_win32_app_info_supports_uris;
   iface->supports_files = g_win32_app_info_supports_files;
   iface->launch_uris = g_win32_app_info_launch_uris;
+  iface->launch_uris_async = g_win32_app_info_launch_uris_async;
+  iface->launch_uris_finish = g_win32_app_info_launch_uris_finish;
   iface->should_show = g_win32_app_info_should_show;
 /*  iface->set_as_default_for_type = g_win32_app_info_set_as_default_for_type;*/
 /*  iface->set_as_default_for_extension = g_win32_app_info_set_as_default_for_extension;*/

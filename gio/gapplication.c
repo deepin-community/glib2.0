@@ -1,6 +1,8 @@
 /*
  * Copyright © 2010 Codethink Limited
  *
+ * SPDX-License-Identifier: LGPL-2.1-or-later
+ *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
  * License as published by the Free Software Foundation; either
@@ -671,6 +673,8 @@ add_packed_option (GApplication *application,
  * inspected and modified.  If %G_APPLICATION_HANDLES_COMMAND_LINE is
  * set, then the resulting dictionary is sent to the primary instance,
  * where g_application_command_line_get_options_dict() will return it.
+ * As it has been passed outside the process at this point, the types of all
+ * values in the options dict must be checked before being used.
  * This "packing" is done according to the type of the argument --
  * booleans for normal flags, strings for strings, bytestrings for
  * filenames, etc.  The packing only occurs if the flag is given (ie: we
@@ -1484,7 +1488,7 @@ g_application_class_init (GApplicationClass *class)
     g_param_spec_flags ("flags",
                         P_("Application flags"),
                         P_("Flags specifying the behaviour of the application"),
-                        G_TYPE_APPLICATION_FLAGS, G_APPLICATION_FLAGS_NONE,
+                        G_TYPE_APPLICATION_FLAGS, G_APPLICATION_DEFAULT_FLAGS,
                         G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 
   g_object_class_install_property (object_class, PROP_RESOURCE_BASE_PATH,

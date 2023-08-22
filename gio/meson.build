@@ -1,6 +1,7 @@
 gio_c_args = [
   '-DG_LOG_DOMAIN="GLib-GIO"',
   '-DGIO_COMPILATION',
+  '-DGIO_LAUNCH_DESKTOP="@0@"'.format(glib_prefix / multiarch_libexecdir / 'gio-launch-desktop'),
   '-DGIO_MODULE_DIR="@0@"'.format(glib_giomodulesdir),
   '-DLOCALSTATEDIR="@0@"'.format(glib_localstatedir),
 ]
@@ -261,7 +262,6 @@ settings_headers = files(
 )
 
 settings_sources = files(
-  'gvdb/gvdb-reader.c',
   'gdelayedsettingsbackend.c',
   'gkeyfilesettingsbackend.c',
   'gmemorysettingsbackend.c',
@@ -354,7 +354,6 @@ if host_system != 'windows'
   unix_sources = files(
     'gfiledescriptorbased.c',
     'giounix-private.c',
-    'gunixfdlist.c',
     'gunixfdmessage.c',
     'gunixmount.c',
     'gunixmounts.c',
@@ -382,7 +381,6 @@ if host_system != 'windows'
   gio_unix_include_headers = files(
     'gfiledescriptorbased.h',
     'gunixmounts.h',
-    'gunixfdlist.h',
     'gunixfdmessage.h',
     'gunixinputstream.h',
     'gunixoutputstream.h',
@@ -402,6 +400,20 @@ if host_system != 'windows'
     contenttype_sources += files('gcontenttype.c')
     appinfo_sources += files('gdesktopappinfo.c')
     gio_unix_include_headers += files('gdesktopappinfo.h')
+    launch_desktop_sources = files('gio-launch-desktop.c')
+
+    if host_system == 'linux'
+      launch_desktop_sources += files('../glib/gjournal-private.c')
+    endif
+
+    gio_launch_desktop = executable('gio-launch-desktop', launch_desktop_sources,
+      include_directories : glibinc,
+      install : true,
+      install_dir : multiarch_libexecdir,
+      install_tag : 'bin',
+      c_args : gio_c_args,
+      # intl.lib is not compatible with SAFESEH
+      link_args : noseh_link_args)
   endif
 
   subdir('xdgmime')
@@ -574,6 +586,7 @@ gio_sources = files(
   'gdtlsserverconnection.c',
   'gunionvolumemonitor.c',
   'gunixconnection.c',
+  'gunixfdlist.c',
   'gunixcredentialsmessage.c',
   'gunixsocketaddress.c',
   'gvfs.c',
@@ -583,8 +596,11 @@ gio_sources = files(
   'gzlibdecompressor.c',
   'glistmodel.c',
   'gliststore.c',
-  '../glib/gtrace.c',
 )
+
+if get_option('default_library') != 'static'
+  gio_sources += files ('../glib/gtrace.c')
+endif
 
 gio_sources += appinfo_sources
 gio_sources += contenttype_sources
@@ -715,6 +731,7 @@ gio_headers = files(
   'gdtlsserverconnection.h',
   'gunixconnection.h',
   'gunixcredentialsmessage.h',
+  'gunixfdlist.h',
   'gunixsocketaddress.h',
   'gvfs.h',
   'gvolume.h',
@@ -774,7 +791,7 @@ if have_bash
   bash_comp_inst_dir = ''
   if bash_comp_dep.found()
     bash_comp_dir_override = bash_comp_dep.version().version_compare('>= 2.10') ? ['datadir', get_option('datadir')] : ['prefix', get_option('prefix')]
-    bash_comp_inst_dir = bash_comp_dep.get_pkgconfig_variable('completionsdir', define_variable: bash_comp_dir_override)
+    bash_comp_inst_dir = bash_comp_dep.get_variable('completionsdir', pkgconfig_define: bash_comp_dir_override)
   endif
 
   if bash_comp_inst_dir == ''
@@ -783,13 +800,15 @@ if have_bash
   endif
 
   install_data([
-    'completion/gapplication',
-    'completion/gdbus',
-    'completion/gio',
-    'completion/gsettings',
-    'completion/gresource'
-  ],
-  install_dir: bash_comp_inst_dir)
+      'completion/gapplication',
+      'completion/gdbus',
+      'completion/gio',
+      'completion/gsettings',
+      'completion/gresource'
+    ],
+    install_dir: bash_comp_inst_dir,
+    install_tag: 'bin',
+  )
 endif
 
 if enable_dtrace
@@ -812,7 +831,8 @@ libgio = library('gio-2.0',
   link_with: internal_deps,
   dependencies : [libz_dep, libdl_dep, libmount_dep, libglib_dep,
                   libgobject_dep, libgmodule_dep, selinux_dep, xattr_dep,
-                  platform_deps, network_libs, libsysprof_capture_dep],
+                  platform_deps, network_libs, libsysprof_capture_dep,
+                  gioenumtypes_dep, gvdb_dep],
   c_args : gio_c_args,
   objc_args : gio_c_args,
   # intl.lib is not compatible with SAFESEH
@@ -829,17 +849,12 @@ schemas_subdir = join_paths('glib-2.0', 'schemas')
 
 libgio_dep = declare_dependency(link_with : libgio,
   dependencies : [libgmodule_dep, libgobject_dep, gioenumtypes_dep],
-  include_directories : [gioinc])
-
-# Work around variables kwarg requiring Meson 0.56
-if meson.version().version_compare('>=0.56.0')
-  libgio_dep = declare_dependency(dependencies: libgio_dep,
-    variables: [
-      'schemasdir=' + join_paths(glib_datadir, schemas_subdir),
-      'giomoduledir=' + glib_giomodulesdir,
-    ]
-  )
-endif
+  include_directories : [gioinc],
+  variables : [
+    'schemasdir=' + join_paths(glib_datadir, schemas_subdir),
+    'giomoduledir=' + glib_giomodulesdir,
+  ],
+)
 
 pkg.generate(libgio,
   requires : ['glib-2.0', 'gobject-2.0'],
@@ -848,8 +863,8 @@ pkg.generate(libgio,
                'bindir=' + join_paths('${prefix}', get_option('bindir')),
                'giomoduledir=' + pkgconfig_giomodulesdir,
                'gio=' + join_paths('${bindir}', 'gio'),
-               'gio_querymodules=' + join_paths('${bindir}', 'gio-querymodules'),
-               'glib_compile_schemas=' + join_paths('${bindir}', 'glib-compile-schemas'),
+               'gio_querymodules=@0@'.format(pkgconfig_multiarch_bindir / 'gio-querymodules'),
+               'glib_compile_schemas=@0@'.format(pkgconfig_multiarch_bindir / 'glib-compile-schemas'),
                'glib_compile_resources=' + join_paths('${bindir}', 'glib-compile-resources'),
                'gdbus=' + join_paths('${bindir}', 'gdbus'),
                'gdbus_codegen=' + join_paths('${bindir}', 'gdbus-codegen'),
@@ -861,11 +876,7 @@ pkg.generate(libgio,
   name : 'GIO',
   description : 'glib I/O library',
 )
-
-if meson.version().version_compare('>=0.54.0')
-  meson.override_dependency('gio-2.0', libgio_dep)
-endif
-
+meson.override_dependency('gio-2.0', libgio_dep)
 
 if host_system == 'windows'
   pkg.generate(requires : ['gobject-2.0', 'gmodule-no-export-2.0', 'gio-2.0'],
@@ -876,9 +887,7 @@ if host_system == 'windows'
     name : 'GIO Windows specific APIs',
     description : 'Windows specific headers for glib I/O library',
   )
-  if meson.version().version_compare('>=0.54.0')
-    meson.override_dependency('gio-win32-2.0', libgio_dep)
-  endif
+  meson.override_dependency('gio-windows-2.0', libgio_dep)
 else
   pkg.generate(requires : ['gobject-2.0', 'gio-2.0'],
     subdirs : ['gio-unix-2.0'],
@@ -888,9 +897,7 @@ else
     name : 'GIO unix specific APIs',
     description : 'unix specific headers for glib I/O library',
   )
-  if meson.version().version_compare('>=0.54.0')
-    meson.override_dependency('gio-unix-2.0', libgio_dep)
-  endif
+  meson.override_dependency('gio-unix-2.0', libgio_dep)
 endif
 
 if host_system == 'windows'
@@ -955,6 +962,7 @@ gio_tool_sources = [
 
 executable('gio', gio_tool_sources,
   install : true,
+  install_tag : 'bin',
   c_args : gio_c_args,
   # intl.lib is not compatible with SAFESEH
   link_args : noseh_link_args,
@@ -962,36 +970,42 @@ executable('gio', gio_tool_sources,
 
 executable('gresource', 'gresource-tool.c',
   install : true,
+  install_tag : 'bin',
   # intl.lib is not compatible with SAFESEH
   link_args : noseh_link_args,
   dependencies : [libelf, libgio_dep, libgobject_dep, libgmodule_dep, libglib_dep])
 
 gio_querymodules = executable('gio-querymodules', 'gio-querymodules.c', 'giomodule-priv.c',
   install : true,
+  install_dir : multiarch_bindir,
+  install_tag : 'bin',
   c_args : gio_c_args,
   # intl.lib is not compatible with SAFESEH
   link_args : noseh_link_args,
   dependencies : [libgio_dep, libgobject_dep, libgmodule_dep, libglib_dep])
 
 glib_compile_schemas = executable('glib-compile-schemas',
-  ['gvdb/gvdb-builder.c', 'glib-compile-schemas.c'],
+  ['glib-compile-schemas.c'],
   install : true,
+  install_dir : multiarch_bindir,
+  install_tag : 'bin',
   # intl.lib is not compatible with SAFESEH
   link_args : noseh_link_args,
-  dependencies : [libgio_dep, libgobject_dep, libgmodule_dep, libglib_dep])
+  dependencies : [libgio_dep, libgobject_dep, libgmodule_dep, libglib_dep, gvdb_dep])
 
 glib_compile_resources = executable('glib-compile-resources',
-  [gconstructor_as_data_h, 'gvdb/gvdb-builder.c', 'glib-compile-resources.c'],
+  [gconstructor_as_data_h, 'glib-compile-resources.c'],
   install : true,
+  install_tag : 'bin-devel',
   c_args : gio_c_args,
   # intl.lib is not compatible with SAFESEH
   link_args : noseh_link_args,
-  dependencies : [libgio_dep, libgobject_dep, libgmodule_dep, libglib_dep])
+  dependencies : [libgio_dep, libgobject_dep, libgmodule_dep, libglib_dep, gvdb_dep])
 
 # Cannot override those programs in cross compilation case because they are
 # native executables that cannot be run on the build machine.
 # See https://gitlab.gnome.org/GNOME/glib/issues/1859.
-if not meson.is_cross_build()
+if meson.can_run_host_binaries()
   meson.override_find_program('glib-compile-schemas', glib_compile_schemas)
   meson.override_find_program('glib-compile-resources', glib_compile_resources)
   meson.override_find_program('gio-querymodules', gio_querymodules)
@@ -999,18 +1013,24 @@ endif
 
 executable('gsettings', 'gsettings-tool.c',
   install : true,
+  install_tag : 'bin',
   c_args : gio_c_args,
   # intl.lib is not compatible with SAFESEH
   link_args : noseh_link_args,
   dependencies : [libgio_dep, libgobject_dep, libgmodule_dep, libglib_dep])
 install_data('gschema.dtd',
-  install_dir : join_paths(get_option('datadir'), schemas_subdir))
+  install_dir : get_option('datadir') / schemas_subdir,
+  install_tag : 'devel',
+)
 
 install_data(['gschema.loc', 'gschema.its'],
-  install_dir : join_paths(get_option('datadir'), 'gettext/its'))
+  install_dir : get_option('datadir') / 'gettext' / 'its',
+  install_tag : 'devel',
+)
 
 executable('gdbus', 'gdbus-tool.c',
   install : true,
+  install_tag : 'bin',
   c_args : gio_c_args,
   # intl.lib is not compatible with SAFESEH
   link_args : noseh_link_args,
@@ -1019,6 +1039,7 @@ executable('gdbus', 'gdbus-tool.c',
 if host_system != 'windows' and not glib_have_cocoa
   executable('gapplication', 'gapplication-tool.c',
     install : true,
+    install_tag : 'bin',
     c_args : gio_c_args,
     # intl.lib is not compatible with SAFESEH
     link_args : noseh_link_args,
@@ -1033,7 +1054,25 @@ if enable_systemtap
   )
 endif
 
-subdir('fam')
+if multiarch_bindir != get_option('bindir')
+  foreach exe : ['gio-querymodules', 'glib-compile-schemas']
+    if meson.version().version_compare('>=0.61.0')
+      install_symlink(
+        exe,
+        install_dir : get_option('bindir'),
+        pointing_to : get_option('prefix') / multiarch_bindir / exe,
+      )
+    else
+      warning(
+        'Please use Meson >= 0.61.0 or create a symlink @1@ -> @2@ in packaging'.format(
+          get_option('prefix') / get_option('bindir') / exe,
+          get_option('prefix') / multiarch_bindir / exe,
+        )
+      )
+    endif
+  endforeach
+endif
+
 if build_tests
     subdir('tests')
 endif

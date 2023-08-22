@@ -2,6 +2,8 @@
  * Copyright (C) 2007 Imendio AB
  * Authors: Tim Janik, Sven Herzberg
  *
+ * SPDX-License-Identifier: LGPL-2.1-or-later
+ *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
  * License as published by the Free Software Foundation; either
@@ -355,6 +357,7 @@
 
 /**
  * GTestSubprocessFlags:
+ * @G_TEST_SUBPROCESS_DEFAULT: Default behaviour. Since: 2.74
  * @G_TEST_SUBPROCESS_INHERIT_STDIN: If this flag is given, the child
  *     process will inherit the parent's stdin. Otherwise, the child's
  *     stdin is redirected to `/dev/null`.
@@ -3780,7 +3783,7 @@ G_GNUC_END_IGNORE_DEPRECATIONS
  *       }
  *
  *     // Reruns this same test in a subprocess
- *     g_test_trap_subprocess (NULL, 0, 0);
+ *     g_test_trap_subprocess (NULL, 0, G_TEST_SUBPROCESS_DEFAULT);
  *     g_test_trap_assert_failed ();
  *     g_test_trap_assert_stderr ("*ERROR*too large*");
  *   }

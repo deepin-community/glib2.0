@@ -3,7 +3,6 @@
 binaries := $(shell dh_listpackages)
 
 export DEB_BUILD_MAINT_OPTIONS=hardening=+bindnow
-export DEB_BUILD_OPTIONS=nocheck 
 
 # Ensure the build aborts when there are still references to undefined symbols
 DEB_LDFLAGS_MAINT_APPEND += -Wl,-z,defs
@@ -22,11 +21,21 @@ include /usr/share/dpkg/default.mk
 %:
 	dh $@
 
+DEB_CONFIGURE_EXTRA_FLAGS =
+
+ifneq ($(DEB_HOST_ARCH),$(DEB_BUILD_ARCH))
+# Properties of glibc. These are the same for all Debian architectures,
+# and are auto-detected when doing a native build.
+DEB_CONFIGURE_EXTRA_FLAGS += --cross-file=$(CURDIR)/debian/meson/libc-properties.ini
+
+# The direction of stack growth varies between architectures.
 ifneq ($(filter hppa,$(DEB_HOST_ARCH_CPU)),)
-stack_grows_up = true
+DEB_CONFIGURE_EXTRA_FLAGS += --cross-file=$(CURDIR)/debian/meson/stack-grows-up.ini
 else
-stack_grows_up = false
+DEB_CONFIGURE_EXTRA_FLAGS += --cross-file=$(CURDIR)/debian/meson/stack-grows-down.ini
 endif
+
+endif # cross-compiling
 
 ifneq ($(filter kfreebsd,$(DEB_HOST_ARCH_OS)),)
 have_non_stub_xattr = false
@@ -34,22 +43,20 @@ else
 have_non_stub_xattr = true
 endif
 
-export DH_MESON_CROSS_FILE = debian/cross.txt
+# This target can be run manually to verify that we have the source code
+# for these files. If all goes well, it should result in no diff.
+# This is not done automatically during the build, because it requires a
+# git checkout of GLib.
+maintainer-update-unicode-data:
+	rm -f glib/gscripttable.h
+	rm -f glib/gunibreak.h
+	rm -f glib/gunichartables.h
+	rm -f glib/gunidecomp.h
+	rm -f glib/tests/casefold.txt
+	rm -f glib/tests/casemap.txt
+	$(CURDIR)/tools/update-unicode-data.sh $(CURDIR)/unicode-data 15.0.0
 
-# We edit the debcrossgen output to work around unimplemented feature
-# request https://bugs.debian.org/912559
 override_dh_auto_configure:
-ifneq ($(DEB_HOST_ARCH),$(DEB_BUILD_ARCH))
-	/usr/share/meson/debcrossgen \
-		-o debian/cross.txt.in
-	debian/set-cross-properties \
-		have_c99_snprintf=true \
-		have_c99_vsnprintf=true \
-		have_strlcpy=false \
-		have_unix98_printf=true \
-		growing_stack=$(stack_grows_up) \
-		< debian/cross.txt.in > debian/cross.txt
-endif
 	dh_auto_configure \
 		--builddirectory=debian/build/deb \
 		-- \
@@ -73,7 +80,7 @@ override_dh_clean:
 
 override_dh_makeshlibs:
 	dh_makeshlibs -plibglib2.0-tests -n
-	dh_makeshlibs --remaining-packages --add-udeb=libglib2.0-udeb -Xlibgiofam.so -- -c4
+	dh_makeshlibs --remaining-packages --add-udeb=libglib2.0-udeb -- -c4
 
 # (Ubuntu-specific)
 # Don't strip translations from the installed tests; makes them environment dependent.
@@ -111,8 +118,13 @@ endif
 override_dh_auto_test-arch:
 ifeq (,$(filter nocheck,$(DEB_BUILD_OPTIONS)))
 	# Remove LD_PRELOAD so we don't run with fakeroot, which makes dbus-related tests fail
+	# Remove LANGUAGE to avoid mismatches between expected and actual
+	# messages in non-English locales (mainly on reproducible-builds)
 	# First run the non-flaky tests, and fail the build if they fail (on linux)
-	env -u LD_PRELOAD \
+	env \
+		-u LANG \
+		-u LANGUAGE \
+		-u LD_PRELOAD \
 		DEB_BUILD_TIME_TESTS=1 \
 		LC_ALL=C.UTF-8 \
 		MESON_TESTTHREADS=1 \
@@ -156,7 +168,10 @@ ifeq (,$(filter nocheck,$(DEB_BUILD_OPTIONS)))
 		--verbose \
 	|| $(handle_test_failure)
 	# and then run the flaky ones, but ignore them failing
-	env -u LD_PRELOAD \
+	env \
+		-u LANG \
+		-u LANGUAGE \
+		-u LD_PRELOAD \
 		DEB_BUILD_TIME_TESTS=1 \
 		LC_ALL=C.UTF-8 \
 		MESON_TESTTHREADS=1 \
@@ -194,19 +209,13 @@ enable_libmount := disabled
 enable_selinux := disabled
 endif
 
-ifneq ($(filter hurd,$(DEB_HOST_ARCH_OS)),)
-use_fam := true
-else
-use_fam := false
-endif
-
 DEB_CONFIGURE_FLAGS_deb := \
 	--default-library both \
-	-Dfam=$(use_fam) \
 	-Dinstalled_tests=true \
 	-Dlibelf=enabled \
 	-Dlibmount=$(enable_libmount) \
 	-Dman=true \
+	-Dmultiarch=true \
 	-Dselinux=$(enable_selinux) \
 	-Dsystemtap=true \
 	-Dxattr=$(have_non_stub_xattr) \
@@ -259,6 +268,7 @@ override_dh_install:
 ifneq ($(filter %-udeb,$(binaries)),)
 	# Unwanted bits from the .udeb build
 	rm -f debian/install/udeb/usr/lib/*/*.so
+	rm -fr debian/install/udeb/usr/libexec/gio-launch-desktop
 	rm -fr debian/install/udeb/usr/share/gdb
 	rm -fr debian/install/udeb/usr/share/gettext/its
 	rm -fr debian/install/udeb/usr/share/glib-2.0/codegen
@@ -270,12 +280,7 @@ endif
 ifneq ($(filter %-tests,$(binaries)),)
 	sed -i -e '/^#!.*/,1 d' debian/install/deb/usr/libexec/installed-tests/glib/taptestrunner.py
 endif
-ifneq ($(filter hurd,$(DEB_HOST_ARCH_OS)),)
-	dh_install -plibglib2.0-0 --sourcedir=debian/install/deb usr/lib/${DEB_HOST_MULTIARCH}/gio/modules/libgiofam.so usr/lib/${DEB_HOST_MULTIARCH}/gio/modules
-endif
 	dh_install --remaining-packages --sourcedir=debian/install/deb
-	install -D -t debian/libglib2.0-0/usr/share/glib-2.0/ debian/clean-up-unmanaged-libraries
-	install -D -t debian/libglib2.0-0/usr/lib/${DEB_HOST_MULTIARCH}/glib-2.0/ debian/gio-launch-desktop
 
 override_dh_dwz:
 	dh_dwz -Nlibglib2.0-udeb

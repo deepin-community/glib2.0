@@ -2,6 +2,8 @@
  *
  * Copyright © 2010 Red Hat, Inc
  *
+ * SPDX-License-Identifier: LGPL-2.1-or-later
+ *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
  * License as published by the Free Software Foundation; either
@@ -211,7 +213,7 @@ g_tls_client_connection_new (GIOStream           *base_io_stream,
 GTlsCertificateFlags
 g_tls_client_connection_get_validation_flags (GTlsClientConnection *conn)
 {
-  GTlsCertificateFlags flags = 0;
+  GTlsCertificateFlags flags = G_TLS_CERTIFICATE_NO_FLAGS;
 
   g_return_val_if_fail (G_IS_TLS_CLIENT_CONNECTION (conn), 0);
 

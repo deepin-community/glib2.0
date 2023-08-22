@@ -1,6 +1,8 @@
 /* GLIB - Library of useful routines for C programming
  * Copyright (C) 1995-1997  Peter Mattis, Spencer Kimball and Josh MacDonald
  *
+ * SPDX-License-Identifier: LGPL-2.1-or-later
+ *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
  * License as published by the Free Software Foundation; either
@@ -199,6 +201,10 @@
 #include "gstring.h"
 #include "gpattern.h"
 #include "gthreadprivate.h"
+
+#if defined(__linux__) && !defined(__BIONIC__)
+#include "gjournal-private.h"
+#endif
 
 #ifdef G_OS_UNIX
 #include <unistd.h>
@@ -595,7 +601,12 @@ static void
 write_string (FILE        *stream,
 	      const gchar *string)
 {
-  fputs (string, stream);
+  if (fputs (string, stream) == EOF)
+    {
+      /* Something failed, but it's not an error we can handle at glib level
+       * so let's just continue without the compiler blaming us
+       */
+    }
 }
 
 static void
@@ -606,8 +617,12 @@ write_string_sized (FILE        *stream,
   /* Is it nul-terminated? */
   if (length < 0)
     write_string (stream, string);
-  else
-    fwrite (string, 1, length, stream);
+  else if (fwrite (string, 1, length, stream) < (size_t) length)
+    {
+      /* Something failed, but it's not an error we can handle at glib level
+       * so let's just continue without the compiler blaming us
+       */
+    }
 }
 
 static GLogDomain*
@@ -1636,6 +1651,12 @@ done_query:
  * the code which sets them. For example, custom keys from GLib all have a
  * `GLIB_` prefix.
  *
+ * Note that keys that expect UTF-8 strings (specifically `"MESSAGE"` and
+ * `"GLIB_DOMAIN"`) must be passed as NUL-terminated UTF-8 strings until GLib
+ * version 2.74.1 because the default log handler did not consider the length of
+ * the `GLogField`. Starting with GLib 2.74.1 this is fixed and
+ * non-NUL-terminated UTF-8 strings can be passed with their correct length.
+ *
  * The @log_domain will be converted into a `GLIB_DOMAIN` field. @log_level will
  * be converted into a
  * [`PRIORITY`](https://www.freedesktop.org/software/systemd/man/systemd.journal-fields.html#PRIORITY=)
@@ -2059,9 +2080,18 @@ g_log_set_writer_func (GLogWriterFunc func,
   g_return_if_fail (func != NULL);
 
   g_mutex_lock (&g_messages_lock);
+
+  if (log_writer_func != g_log_writer_default)
+    {
+      g_mutex_unlock (&g_messages_lock);
+      g_error ("g_log_set_writer_func() called multiple times");
+      return;
+    }
+
   log_writer_func = func;
   log_writer_user_data = user_data;
   log_writer_user_data_free = user_data_free;
+
   g_mutex_unlock (&g_messages_lock);
 }
 
@@ -2212,31 +2242,10 @@ gboolean
 g_log_writer_is_journald (gint output_fd)
 {
 #if defined(__linux__) && !defined(__BIONIC__)
-  /* FIXME: Use the new journal API for detecting whether we’re writing to the
-   * journal. See: https://github.com/systemd/systemd/issues/2473
-   */
-  union {
-    struct sockaddr_storage storage;
-    struct sockaddr sa;
-    struct sockaddr_un un;
-  } addr;
-  socklen_t addr_len;
-  int err;
-
-  if (output_fd < 0)
-    return FALSE;
-
-  /* Namespaced journals start with `/run/systemd/journal.${name}/` (see
-   * `RuntimeDirectory=systemd/journal.%i` in `systemd-journald@.service`. The
-   * default journal starts with `/run/systemd/journal/`. */
-  addr_len = sizeof(addr);
-  err = getpeername (output_fd, &addr.sa, &addr_len);
-  if (err == 0 && addr.storage.ss_family == AF_UNIX)
-    return (g_str_has_prefix (addr.un.sun_path, "/run/systemd/journal/") ||
-            g_str_has_prefix (addr.un.sun_path, "/run/systemd/journal."));
-#endif
-
+  return _g_fd_is_journal (output_fd);
+#else
   return FALSE;
+#endif
 }
 
 static void escape_string (GString *string);
@@ -2274,6 +2283,8 @@ g_log_writer_format_fields (GLogLevelFlags   log_level,
   gsize i;
   const gchar *message = NULL;
   const gchar *log_domain = NULL;
+  gssize message_length = -1;
+  gssize log_domain_length = -1;
   gchar level_prefix[STRING_BUFFER_SIZE];
   GString *gstring;
   gint64 now;
@@ -2287,9 +2298,15 @@ g_log_writer_format_fields (GLogLevelFlags   log_level,
       const GLogField *field = &fields[i];
 
       if (g_strcmp0 (field->key, "MESSAGE") == 0)
-        message = field->value;
+        {
+          message = field->value;
+          message_length = field->length;
+        }
       else if (g_strcmp0 (field->key, "GLIB_DOMAIN") == 0)
-        log_domain = field->value;
+        {
+          log_domain = field->value;
+          log_domain_length = field->length;
+        }
     }
 
   /* Format things. */
@@ -2315,7 +2332,7 @@ g_log_writer_format_fields (GLogLevelFlags   log_level,
 
   if (log_domain != NULL)
     {
-      g_string_append (gstring, log_domain);
+      g_string_append_len (gstring, log_domain, log_domain_length);
       g_string_append_c (gstring, '-');
     }
   g_string_append (gstring, level_prefix);
@@ -2345,7 +2362,7 @@ g_log_writer_format_fields (GLogLevelFlags   log_level,
       GString *msg;
       const gchar *charset;
 
-      msg = g_string_new (message);
+      msg = g_string_new_len (message, message_length);
       escape_string (msg);
 
       if (g_get_console_charset (&charset))
@@ -3322,6 +3339,35 @@ g_set_print_handler (GPrintFunc func)
   return old_print_func;
 }
 
+static void
+print_string (FILE        *stream,
+              const gchar *string)
+{
+  const gchar *charset;
+  int ret;
+
+  if (g_get_console_charset (&charset))
+    {
+      /* charset is UTF-8 already */
+      ret = fputs (string, stream);
+    }
+  else
+    {
+      gchar *converted_string = strdup_convert (string, charset);
+
+      ret = fputs (converted_string, stream);
+      g_free (converted_string);
+    }
+
+  /* In case of failure we can just return early, but there's nothing else
+   * we can do at this level
+   */
+  if (ret == EOF)
+    return;
+
+  fflush (stream);
+}
+
 /**
  * g_print:
  * @format: the message format. See the printf() documentation
@@ -3359,20 +3405,8 @@ g_print (const gchar *format,
   if (local_glib_print_func)
     local_glib_print_func (string);
   else
-    {
-      const gchar *charset;
+    print_string (stdout, string);
 
-      if (g_get_console_charset (&charset))
-        fputs (string, stdout); /* charset is UTF-8 already */
-      else
-        {
-          gchar *lstring = strdup_convert (string, charset);
-
-          fputs (lstring, stdout);
-          g_free (lstring);
-        }
-      fflush (stdout);
-    }
   g_free (string);
 }
 
@@ -3438,20 +3472,8 @@ g_printerr (const gchar *format,
   if (local_glib_printerr_func)
     local_glib_printerr_func (string);
   else
-    {
-      const gchar *charset;
+    print_string (stderr, string);
 
-      if (g_get_console_charset (&charset))
-        fputs (string, stderr); /* charset is UTF-8 already */
-      else
-        {
-          gchar *lstring = strdup_convert (string, charset);
-
-          fputs (lstring, stderr);
-          g_free (lstring);
-        }
-      fflush (stderr);
-    }
   g_free (string);
 }
 
