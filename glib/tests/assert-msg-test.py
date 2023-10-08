@@ -24,7 +24,6 @@ import collections
 import os
 import shutil
 import subprocess
-import sys
 import tempfile
 import unittest
 
@@ -103,7 +102,7 @@ class TestAssertMessage(unittest.TestCase):
         if self.__gdb is None:
             return Result(None, "", "")
 
-        argv = ["gdb", "--batch"]
+        argv = ["gdb", "-n", "--batch"]
         argv.extend(args)
         print("Running:", argv)
 
@@ -151,15 +150,17 @@ class TestAssertMessage(unittest.TestCase):
             try:
                 tmp.write(GDB_SCRIPT)
                 tmp.close()
-                result = self.runGdbAssertMessage("-x", tmp.name, self.__assert_msg_test)
+                result = self.runGdbAssertMessage(
+                    "-x", tmp.name, self.__assert_msg_test
+                )
             finally:
                 os.unlink(tmp.name)
 
             # Some CI environments disable ptrace (as they’re running in a
             # container). If so, skip the test as there’s nothing we can do.
-            if (
-                result.info.returncode != 0
-                and "ptrace: Operation not permitted" in result.err
+            if result.info.returncode != 0 and (
+                "ptrace: Operation not permitted" in result.err
+                or "warning: opening /proc/PID/mem file for lwp" in result.err
             ):
                 self.skipTest("GDB is not functional due to ptrace being disabled")
 

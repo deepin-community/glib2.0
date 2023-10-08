@@ -22,15 +22,15 @@
       is thus:
 
       <literallayout>
-        <userinput>meson _build</userinput>
-        <userinput>ninja -C _build</userinput>
-        <userinput>ninja -C _build install</userinput>
+        <userinput>meson setup _build</userinput>
+        <userinput>meson compile -C _build</userinput>
+        <userinput>meson install -C _build</userinput>
       </literallayout>
 
       On FreeBSD:
       <literallayout>
-        <userinput>env CPPFLAGS="-I/usr/local/include" LDFLAGS="-L/usr/local/lib -Wl,--disable-new-dtags" meson -Dxattr=false -Dinstalled_tests=true -Db_lundef=false _build</userinput>
-        <userinput>ninja -C _build</userinput>
+        <userinput>env CPPFLAGS="-I/usr/local/include" LDFLAGS="-L/usr/local/lib -Wl,--disable-new-dtags" meson setup -Dxattr=false -Dinstalled_tests=true -Db_lundef=false _build</userinput>
+        <userinput>meson compile -C _build</userinput>
       </literallayout>
     </para>
 
@@ -49,7 +49,7 @@
       aliasing and cannot be guaranteed to work.
     </para>
     <para>
-      The GTK+ documentation contains
+      The GTK documentation contains
       <ulink url="https://developer.gnome.org/gtk3/stable/gtk-building.html">further details</ulink>
       about the build process and ways to influence it.
     </para>
@@ -60,7 +60,7 @@
       Before you can compile the GLib library, you need to have
       various other tools and libraries installed on your system.
       If you are building from a release archive, you will need
-      <ulink url="https://wiki.gnome.org/Projects/GLib/CompilerRequirements">a compliant C toolchain</ulink>,
+      <ulink url="https://gitlab.gnome.org/GNOME/glib/-/blob/main/docs/toolchain-requirements.md">a compliant C toolchain</ulink>,
       <application>Meson</application>, and <application>pkg-config</application>;
       the requirements are the same when building from a Git repository clone
       of GLib.
@@ -332,23 +332,6 @@
         To generate a coverage report, use
         <command>ninja coverage-html</command>. The report is placed in the
         <filename>meson-logs</filename> directory.
-      </para>
-    </formalpara>
-
-    <formalpara>
-      <title><option>-Druntime_libdir=RELPATH</option></title>
-
-      <para>
-        Allows specifying a relative path to where to install the runtime
-        libraries (meaning library files used for running, not developing,
-        GLib applications). This can be used in operating system setups where
-        programs using GLib needs to run before e.g. <filename>/usr</filename>
-        is mounted.
-        For example, if <varname>LIBDIR</varname> is <filename>/usr/lib</filename> and
-        <filename>../../lib</filename> is passed to
-        <option>-Druntime_libdir</option> then the
-        runtime libraries are installed into <filename>/lib</filename> rather
-        than <filename>/usr/lib</filename>.
       </para>
     </formalpara>
   </refsect1>
