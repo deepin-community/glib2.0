@@ -461,7 +461,7 @@ g_socket_details_from_fd (GSocket *socket)
     struct sockaddr sa;
   } address;
   gint fd;
-  guint addrlen;
+  socklen_t addrlen;
   int value, family;
   int errsv;
 
@@ -503,7 +503,7 @@ g_socket_details_from_fd (GSocket *socket)
   if (addrlen > 0)
     {
       g_assert (G_STRUCT_OFFSET (struct sockaddr, sa_family) +
-		sizeof address.storage.ss_family <= addrlen);
+		(socklen_t) sizeof address.storage.ss_family <= addrlen);
       family = address.storage.ss_family;
     }
   else
@@ -587,7 +587,38 @@ g_socket_details_from_fd (GSocket *socket)
 	       socket_strerror (errsv));
 }
 
-/* Wrapper around socket() that is shared with gnetworkmonitornetlink.c */
+static void
+socket_set_nonblock (int fd)
+{
+#ifndef G_OS_WIN32
+  GError *error = NULL;
+#else
+  gulong arg;
+#endif
+
+  /* Always use native nonblocking sockets, as Windows sets sockets to
+   * nonblocking automatically in certain operations. This way we make
+   * things work the same on all platforms.
+   */
+#ifndef G_OS_WIN32
+  if (!g_unix_set_fd_nonblocking (fd, TRUE, &error))
+    {
+      g_warning ("Error setting socket to nonblocking mode: %s", error->message);
+      g_clear_error (&error);
+    }
+#else
+  arg = TRUE;
+
+  if (ioctlsocket (fd, FIONBIO, &arg) == SOCKET_ERROR)
+    {
+      int errsv = get_socket_errno ();
+      g_warning ("Error setting socket status flags: %s", socket_strerror (errsv));
+    }
+#endif
+}
+
+/* Wrapper around socket() that is shared with gnetworkmonitornetlink.c.
+ * It always sets SOCK_CLOEXEC | SOCK_NONBLOCK. */
 gint
 g_socket (gint     domain,
           gint     type,
@@ -596,13 +627,13 @@ g_socket (gint     domain,
 {
   int fd, errsv;
 
-#ifdef SOCK_CLOEXEC
-  fd = socket (domain, type | SOCK_CLOEXEC, protocol);
+#if defined(SOCK_CLOEXEC) && defined(SOCK_NONBLOCK)
+  fd = socket (domain, type | SOCK_CLOEXEC | SOCK_NONBLOCK, protocol);
   errsv = errno;
   if (fd != -1)
     return fd;
 
-  /* It's possible that libc has SOCK_CLOEXEC but the kernel does not */
+  /* It's possible that libc has SOCK_CLOEXEC and/or SOCK_NONBLOCK but the kernel does not */
   if (fd < 0 && (errsv == EINVAL || errsv == EPROTOTYPE))
 #endif
     fd = socket (domain, type, protocol);
@@ -644,9 +675,13 @@ g_socket (gint     domain,
     }
 #endif
 
+  /* Ensure the socket is non-blocking. */
+  socket_set_nonblock (fd);
+
   return fd;
 }
 
+/* Returned socket has SOCK_CLOEXEC | SOCK_NONBLOCK set. */
 static gint
 g_socket_create_socket (GSocketFamily   family,
 			GSocketType     type,
@@ -696,44 +731,22 @@ g_socket_constructed (GObject *object)
   GSocket *socket = G_SOCKET (object);
 
   if (socket->priv->fd >= 0)
-    /* create socket->priv info from the fd */
-    g_socket_details_from_fd (socket);
-
+    {
+      /* create socket->priv info from the fd and ensure it’s non-blocking */
+      g_socket_details_from_fd (socket);
+      socket_set_nonblock (socket->priv->fd);
+    }
   else
-    /* create the fd from socket->priv info */
-    socket->priv->fd = g_socket_create_socket (socket->priv->family,
-					       socket->priv->type,
-					       socket->priv->protocol,
-					       &socket->priv->construct_error);
+    {
+      /* create the fd from socket->priv info; this sets it non-blocking by construction */
+      socket->priv->fd = g_socket_create_socket (socket->priv->family,
+					         socket->priv->type,
+					         socket->priv->protocol,
+					         &socket->priv->construct_error);
+    }
 
   if (socket->priv->fd != -1)
     {
-#ifndef G_OS_WIN32
-      GError *error = NULL;
-#else
-      gulong arg;
-#endif
-
-      /* Always use native nonblocking sockets, as Windows sets sockets to
-       * nonblocking automatically in certain operations. This way we make
-       * things work the same on all platforms.
-       */
-#ifndef G_OS_WIN32
-      if (!g_unix_set_fd_nonblocking (socket->priv->fd, TRUE, &error))
-        {
-          g_warning ("Error setting socket nonblocking: %s", error->message);
-          g_clear_error (&error);
-        }
-#else
-      arg = TRUE;
-
-      if (ioctlsocket (socket->priv->fd, FIONBIO, &arg) == SOCKET_ERROR)
-        {
-          int errsv = get_socket_errno ();
-          g_warning ("Error setting socket status flags: %s", socket_strerror (errsv));
-        }
-#endif
-
 #ifdef SO_NOSIGPIPE
       /* See note about SIGPIPE below. */
       g_socket_set_option (socket, SOL_SOCKET, SO_NOSIGPIPE, TRUE, NULL);
@@ -1990,7 +2003,7 @@ g_socket_get_local_address (GSocket  *socket,
     struct sockaddr_storage storage;
     struct sockaddr sa;
   } buffer;
-  guint len = sizeof (buffer);
+  socklen_t len = sizeof (buffer);
 
   g_return_val_if_fail (G_IS_SOCKET (socket), NULL);
 
@@ -2026,7 +2039,7 @@ g_socket_get_remote_address (GSocket  *socket,
     struct sockaddr_storage storage;
     struct sockaddr sa;
   } buffer;
-  guint len = sizeof (buffer);
+  socklen_t len = sizeof (buffer);
 
   g_return_val_if_fail (G_IS_SOCKET (socket), NULL);
 
@@ -2858,6 +2871,9 @@ g_socket_accept (GSocket       *socket,
 		 GCancellable  *cancellable,
 		 GError       **error)
 {
+#ifdef HAVE_ACCEPT4
+  gboolean try_accept4 = TRUE;
+#endif
   GSocket *new_socket;
   gint ret;
 
@@ -2871,7 +2887,28 @@ g_socket_accept (GSocket       *socket,
 
   while (TRUE)
     {
-      if ((ret = accept (socket->priv->fd, NULL, 0)) < 0)
+      gboolean try_accept = TRUE;
+
+#ifdef HAVE_ACCEPT4
+      if (try_accept4)
+        {
+          ret = accept4 (socket->priv->fd, NULL, 0, SOCK_CLOEXEC);
+          if (ret < 0 && errno == ENOSYS)
+            {
+              try_accept4 = FALSE;
+            }
+          else
+            {
+              try_accept = FALSE;
+            }
+        }
+
+      g_assert (try_accept4 || try_accept);
+#endif
+      if (try_accept)
+        ret = accept (socket->priv->fd, NULL, 0);
+
+      if (ret < 0)
 	{
 	  int errsv = get_socket_errno ();
 
@@ -3280,7 +3317,7 @@ g_socket_receive_with_timeout (GSocket       *socket,
  * @socket: a #GSocket
  * @buffer: (array length=size) (element-type guint8) (out caller-allocates):
  *     a buffer to read data into (which should be at least @size bytes long).
- * @size: the number of bytes you want to read from the socket
+ * @size: (in): the number of bytes you want to read from the socket
  * @cancellable: (nullable): a %GCancellable or %NULL
  * @error: #GError for error reporting, or %NULL to ignore.
  *
@@ -3330,7 +3367,7 @@ g_socket_receive (GSocket       *socket,
  * @socket: a #GSocket
  * @buffer: (array length=size) (element-type guint8) (out caller-allocates):
  *     a buffer to read data into (which should be at least @size bytes long).
- * @size: the number of bytes you want to read from the socket
+ * @size: (in): the number of bytes you want to read from the socket
  * @blocking: whether to do blocking or non-blocking I/O
  * @cancellable: (nullable): a %GCancellable or %NULL
  * @error: #GError for error reporting, or %NULL to ignore.
@@ -3363,7 +3400,7 @@ g_socket_receive_with_blocking (GSocket       *socket,
  *     pointer, or %NULL
  * @buffer: (array length=size) (element-type guint8) (out caller-allocates):
  *     a buffer to read data into (which should be at least @size bytes long).
- * @size: the number of bytes you want to read from the socket
+ * @size: (in): the number of bytes you want to read from the socket
  * @cancellable: (nullable): a %GCancellable or %NULL
  * @error: #GError for error reporting, or %NULL to ignore.
  *
@@ -3965,8 +4002,6 @@ socket_source_prepare (GSource *source,
                        gint    *timeout)
 {
   GSocketSource *socket_source = (GSocketSource *)source;
-
-  *timeout = -1;
 
 #ifdef G_OS_WIN32
   if ((socket_source->pollfd.revents & G_IO_NVAL) != 0)
@@ -4679,7 +4714,7 @@ input_message_from_msghdr (const struct msghdr  *msg,
     GPtrArray *my_messages = NULL;
     struct cmsghdr *cmsg;
 
-    if (msg->msg_controllen >= sizeof (struct cmsghdr))
+    if (msg->msg_controllen >= (socklen_t) sizeof (struct cmsghdr))
       {
         g_assert (message->control_messages != NULL);
         for (cmsg = CMSG_FIRSTHDR (msg);
@@ -6220,7 +6255,7 @@ g_socket_get_option (GSocket  *socket,
 		     gint     *value,
 		     GError  **error)
 {
-  guint size;
+  socklen_t size;
 
   g_return_val_if_fail (G_IS_SOCKET (socket), FALSE);
 

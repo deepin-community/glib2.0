@@ -46,6 +46,15 @@
 #include <gstdio.h>
 #include <dirent.h>
 
+#if defined(__BIONIC__) && (__ANDROID_API__ < 26)
+#include <mntent.h>
+/* the shared object of recent bionic libc's have hasmntopt symbol, but
+   some a possible common build environment for android, termux ends
+   up with inssuficient __ANDROID_API__ value for building.
+*/
+extern char* hasmntopt(const struct mntent* mnt, const char* opt);
+#endif
+
 #if HAVE_SYS_STATFS_H
 #include <sys/statfs.h>
 #endif
@@ -266,10 +275,12 @@ g_unix_is_mount_path_system_internal (const char *mount_path)
     "/var",
     "/var/crash",
     "/var/local",
+    GLIB_LOCALSTATEDIR,
     "/var/log",
     "/var/log/audit", /* https://bugzilla.redhat.com/show_bug.cgi?id=333041 */
     "/var/mail",
     "/var/run",
+    GLIB_RUNSTATEDIR,
     "/var/tmp",       /* https://bugzilla.redhat.com/show_bug.cgi?id=335241 */
     "/proc",
     "/sbin",
@@ -583,7 +594,7 @@ _g_get_unix_mounts (void)
   
   read_file = get_mtab_read_file ();
 
-  file = setmntent (read_file, "r");
+  file = setmntent (read_file, "re");
   if (file == NULL)
     return NULL;
 
@@ -725,7 +736,7 @@ _g_get_unix_mounts (void)
   
   read_file = get_mtab_read_file ();
   
-  file = setmntent (read_file, "r");
+  file = setmntent (read_file, "re");
   if (file == NULL)
     return NULL;
   
@@ -1112,7 +1123,7 @@ _g_get_unix_mount_points (void)
   
   read_file = get_fstab_file ();
   
-  file = setmntent (read_file, "r");
+  file = setmntent (read_file, "re");
   if (file == NULL)
     return NULL;
 
@@ -1201,7 +1212,7 @@ _g_get_unix_mount_points (void)
   
   read_file = get_fstab_file ();
   
-  file = setmntent (read_file, "r");
+  file = setmntent (read_file, "re");
   if (file == NULL)
     return NULL;
 
@@ -1376,7 +1387,7 @@ _g_get_unix_mount_points (void)
   
   read_file = get_fstab_file ();
   
-  file = setmntent (read_file, "r");
+  file = setmntent (read_file, "re");
   if (file == NULL)
     return NULL;
   
@@ -3034,7 +3045,7 @@ g_unix_mount_point_guess_can_eject (GUnixMountPoint *mount_point)
 /* Utility functions {{{1 */
 
 #ifdef HAVE_MNTENT_H
-/* borrowed from gtk/gtkfilesystemunix.c in GTK+ on 02/23/2006 */
+/* borrowed from gtk/gtkfilesystemunix.c in GTK on 02/23/2006 */
 static void
 _canonicalize_filename (gchar *filename)
 {
@@ -3164,7 +3175,7 @@ _resolve_dev_root (void)
           /* see if device with similar major:minor as /dev/root is mention
            * in /etc/mtab (it usually is) 
            */
-          f = fopen ("/etc/mtab", "r");
+          f = fopen ("/etc/mtab", "re");
           if (f != NULL) 
             {
 	      struct mntent *entp;

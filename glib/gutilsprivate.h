@@ -26,9 +26,10 @@
 #include "gtypes.h"
 #include "gtestutils.h"
 
+#include <time.h>
+
 G_BEGIN_DECLS
 
-GLIB_AVAILABLE_IN_2_60
 void g_set_user_dirs (const gchar *first_dir_type,
                       ...) G_GNUC_NULL_TERMINATED;
 
@@ -53,6 +54,10 @@ g_nearest_pow (gsize num)
 
   return n + 1;
 }
+
+void _g_unset_cached_tmp_dir (void);
+
+gboolean _g_localtime (time_t timet, struct tm *tm);
 
 G_END_DECLS
 

@@ -7,12 +7,10 @@
 
 #include "glib/glib-private.h"
 
-static gboolean
+static void
 time_out (gpointer unused G_GNUC_UNUSED)
 {
   g_error ("Timed out");
-  /* not reached */
-  return FALSE;
 }
 
 static guint
@@ -22,7 +20,7 @@ add_timeout (guint seconds)
   /* Safety-catch against the main loop having blocked */
   alarm (seconds + 5);
 #endif
-  return g_timeout_add_seconds (seconds, time_out, NULL);
+  return g_timeout_add_seconds_once (seconds, time_out, NULL);
 }
 
 static void
@@ -831,13 +829,8 @@ service_thread_func (gpointer user_data)
   flags = G_DBUS_SERVER_FLAGS_NONE;
 
 #ifdef G_OS_UNIX
-  if (g_unix_socket_address_abstract_names_supported ())
-    address = g_strdup ("unix:tmpdir=/tmp/test-dbus-peer");
-  else
-    {
-      tmpdir = g_dir_make_tmp ("test-dbus-peer-XXXXXX", NULL);
-      address = g_strdup_printf ("unix:tmpdir=%s", tmpdir);
-    }
+  tmpdir = g_dir_make_tmp ("test-dbus-peer-XXXXXX", NULL);
+  address = g_strdup_printf ("unix:tmpdir=%s", tmpdir);
 #else
   address = g_strdup ("nonce-tcp:");
   flags |= G_DBUS_SERVER_FLAGS_AUTHENTICATION_ALLOW_ANONYMOUS;

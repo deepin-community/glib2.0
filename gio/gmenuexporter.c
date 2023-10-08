@@ -28,18 +28,6 @@
 #include "gdbusnamewatching.h"
 #include "gdbuserror.h"
 
-/*
- * G_MENU_EXPORTER_MAX_SECTION_SIZE:
- *
- * The maximum number of entries in a menu section supported by
- * g_dbus_connection_export_menu_model().
- *
- * The exact value of the limit may change in future GLib versions.
- *
- * Since: 2.76
- */
-#define G_MENU_EXPORTER_MAX_SECTION_SIZE 1000
-
 /**
  * SECTION:gmenuexporter
  * @title: GMenuModel exporter
@@ -65,8 +53,9 @@ static GDBusInterfaceInfo *
 org_gtk_Menus_get_interface (void)
 {
   static GDBusInterfaceInfo *interface_info;
+  static gsize interface_info_initialized = 0;
 
-  if (interface_info == NULL)
+  if (g_once_init_enter (&interface_info_initialized))
     {
       GError *error = NULL;
       GDBusNodeInfo *info;
@@ -91,6 +80,8 @@ org_gtk_Menus_get_interface (void)
       g_assert (interface_info != NULL);
       g_dbus_interface_info_ref (interface_info);
       g_dbus_node_info_unref (info);
+
+      g_once_init_leave (&interface_info_initialized, 1);
     }
 
   return interface_info;
@@ -264,12 +255,16 @@ g_menu_exporter_menu_items_changed (GMenuModel *model,
   GMenuExporterMenu *menu = user_data;
   GSequenceIter *point;
   gint i;
+#ifndef G_DISABLE_ASSERT
   gint n_items;
+#endif
 
   g_assert (menu->model == model);
   g_assert (menu->item_links != NULL);
 
+#ifndef G_DISABLE_ASSERT
   n_items = g_sequence_get_length (menu->item_links);
+#endif
   g_assert (position >= 0 && position < G_MENU_EXPORTER_MAX_SECTION_SIZE);
   g_assert (removed >= 0 && removed < G_MENU_EXPORTER_MAX_SECTION_SIZE);
   g_assert (added < G_MENU_EXPORTER_MAX_SECTION_SIZE);
@@ -790,7 +785,7 @@ g_menu_exporter_method_call (GDBusConnection       *connection,
  * returned (with @error set accordingly).
  *
  * Exporting menus with sections containing more than
- * 1000 items is not supported and results in
+ * %G_MENU_EXPORTER_MAX_SECTION_SIZE items is not supported and results in
  * undefined behavior.
  *
  * You can unexport the menu model using

@@ -46,7 +46,7 @@ typedef enum
   G_THREAD_ERROR_AGAIN /* Resource temporarily unavailable */
 } GThreadError;
 
-typedef gpointer (*GThreadFunc) (gpointer user_data);
+typedef gpointer (*GThreadFunc) (gpointer data);
 
 typedef struct _GThread         GThread;
 
@@ -154,7 +154,7 @@ GThread *       g_thread_try_new                (const gchar    *name,
                                                  GError        **error);
 GLIB_AVAILABLE_IN_ALL
 GThread *       g_thread_self                   (void);
-GLIB_AVAILABLE_IN_ALL
+G_NORETURN GLIB_AVAILABLE_IN_ALL
 void            g_thread_exit                   (gpointer        retval);
 GLIB_AVAILABLE_IN_ALL
 gpointer        g_thread_join                   (GThread        *thread);

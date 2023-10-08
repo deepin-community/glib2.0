@@ -1,3 +1,248 @@
+glib2.0 (2.78.0-2) unstable; urgency=medium
+
+  * d/p/gthreadedresolver-Fix-race-between-source-callbacks-and-f.patch:
+    Add patch from upstream to fix a race condition that can crash GNOME
+    Shell (Closes: #1052023)
+  * d/patches: Update translations from upstream: ca, es, fr, it, ru, sl,
+    zh_CN
+
+ -- Simon McVittie <smcv@debian.org>  Sun, 17 Sep 2023 13:27:22 +0100
+
+glib2.0 (2.78.0-1) unstable; urgency=medium
+
+  [ Amin Bandali ]
+  * Change packaging branch to debian/latest
+
+  [ Simon McVittie ]
+  * New upstream stable release
+    - Temporarily revert a change to error handling for GKeyFile containing
+      syntactically invalid string escape sequences (Closes: #1051373).
+      This change is likely to be reverted in 2.79.x.
+    - Improve ability to debug code using GQuark with gdb
+    - Add missing noreturn attribute to g_thread_exit()
+    - Make gutils-user-database unit test work as intended
+    - Minor build system change not relevant to Debian
+    - Translation updates
+
+ -- Simon McVittie <smcv@debian.org>  Fri, 08 Sep 2023 16:53:23 +0100
+
+glib2.0 (2.77.3-1) unstable; urgency=medium
+
+  * New upstream release
+  * d/copyright: Update
+  * d/libglib2.0-0.symbols: Increase required version for
+    g_unix_open_pipe().
+    Software compiled against GLib >= 2.77.3 might be relying on the
+    ability to pass O_CLOEXEC to this function, which was not previously
+    allowed.
+  * d/libglib2.0-dev.install: Install new DTD for GResource XML
+  * d/control.in: libglib2.0-0 Provides the individual library names.
+    This binary package combines several distinct SONAMEs. Give it Provides
+    on the Policy-compliant names that they would have if they had been
+    packaged separately.
+  * Fix a typo in the previous changelog entry
+
+ -- Simon McVittie <smcv@debian.org>  Sun, 03 Sep 2023 12:51:07 +0100
+
+glib2.0 (2.77.2-1) unstable; urgency=medium
+
+  [ Jeremy Bícha ]
+  * New upstream release
+  * Revert "d/rules: Tell Meson that native builds can run host binaries"
+    meson 1.2.1 fixed the underlying issue
+
+  [ Simon McVittie ]
+  * d/rules: Increase arbitrary test timeout on all architectures
+    except x86. Thanks to Adrian Bunk
+
+ -- Jeremy Bícha <jbicha@ubuntu.com>  Mon, 14 Aug 2023 09:43:06 -0400
+
+glib2.0 (2.77.1-2) unstable; urgency=medium
+
+  * Release to unstable (Closes: #1042555)
+
+ -- Jeremy Bícha <jbicha@ubuntu.com>  Fri, 04 Aug 2023 06:22:24 -0400
+
+glib2.0 (2.77.1-1) experimental; urgency=medium
+
+  * New upstream release
+  * Drop 5 patches applied in new release
+  * debian/libglib2.0-0.symbols: Add new symbols
+
+ -- Jeremy Bícha <jbicha@ubuntu.com>  Mon, 31 Jul 2023 09:39:05 +0300
+
+glib2.0 (2.77.0-1) experimental; urgency=medium
+
+  [ Jeremy Bícha ]
+  * New upstream release
+  * debian/libglib2.0-0.symbols: Add new symbols
+  * Drop cherry-picked critical warnings patch: applied in new release
+  * Cherry-pick 2 proposed patches to fix regressions detected by netplan
+    (LP: #2026826)
+
+  [ Sebastien Bacher ]
+  * Cherry-pick 3 more upstream fixes
+
+ -- Jeremy Bícha <jbicha@ubuntu.com>  Tue, 25 Jul 2023 09:34:47 -0400
+
+glib2.0 (2.76.4-4) unstable; urgency=medium
+
+  * Cherry-pick patch from glib 2.77.0 to once again log missing GFileInfo
+    attributes as critical warnings instead of debug
+
+ -- Jeremy Bícha <jbicha@ubuntu.com>  Sun, 23 Jul 2023 18:52:44 -0400
+
+glib2.0 (2.76.4-3) unstable; urgency=medium
+
+  * d/rules: When cross-compiling, expect /proc/self/cmdline works on Linux.
+    This is auto-detected in native builds, but not in cross-builds, because
+    the auto-detection involves running a host-architecture program.
+  * d/rules: Tell Meson that native builds can run host binaries.
+    This is normally true by definition, but the architecture detection
+    that is used for this regressed on mips64el in 1.2.0.
+    Mitigates: #1041499
+
+ -- Simon McVittie <smcv@debian.org>  Wed, 19 Jul 2023 23:03:13 +0100
+
+glib2.0 (2.76.4-2) unstable; urgency=medium
+
+  * Release to unstable
+
+ -- Jeremy Bícha <jbicha@ubuntu.com>  Tue, 18 Jul 2023 16:47:00 -0400
+
+glib2.0 (2.76.4-1) experimental; urgency=medium
+
+  * New upstream release
+
+ -- Jeremy Bícha <jbicha@ubuntu.com>  Thu, 06 Jul 2023 13:31:47 -0400
+
+glib2.0 (2.76.3-1) experimental; urgency=medium
+
+  * New upstream release
+
+ -- Jeremy Bícha <jbicha@ubuntu.com>  Wed, 31 May 2023 14:05:21 -0400
+
+glib2.0 (2.76.2-1) experimental; urgency=medium
+
+  * New upstream release
+  * debian/patches: Refresh
+
+ -- Marco Trevisan (Treviño) <marco@ubuntu.com>  Fri, 21 Apr 2023 17:29:31 +0200
+
+glib2.0 (2.76.1-1) experimental; urgency=medium
+
+  * New upstream release
+    - Downgrade critical warnings from `GFileInfo` about missing attributes to
+      debug messages. The downgrade will be reverted for 2.77.
+
+ -- Jeremy Bicha <jbicha@ubuntu.com>  Sun, 26 Mar 2023 15:38:16 -0400
+
+glib2.0 (2.76.0-1) experimental; urgency=medium
+
+  * New upstream release
+  * Drop patches applied in new release
+
+ -- Jeremy Bicha <jbicha@ubuntu.com>  Fri, 10 Mar 2023 12:35:36 -0500
+
+glib2.0 (2.75.4-1) experimental; urgency=medium
+
+  [ Jeremy Bicha ]
+  * New upstream release
+  * Drop 3 patches applied in new release
+  * Cherry-pick several patches that will be included in 2.76.0
+
+  [ Simon McVittie ]
+  * Add patch to try x-terminal-emulator for Terminal=true apps
+    (Closes: #773915)
+  * README.Debian: Add notes on how to choose how Terminal=true apps launch
+
+ -- Jeremy Bicha <jbicha@ubuntu.com>  Tue, 07 Mar 2023 10:51:15 -0500
+
+glib2.0 (2.75.3-3) experimental; urgency=medium
+
+  * Cherry-pick build test fix for glibc 2.37
+
+ -- Jeremy Bicha <jbicha@ubuntu.com>  Sat, 25 Feb 2023 09:22:04 -0500
+
+glib2.0 (2.75.3-2) experimental; urgency=medium
+
+  [ Simon McVittie ]
+  * d/p/array-test-Don-t-rely-on-endianness-of-multi-byte-numbers.patch:
+    Add proposed patch to fix FTBFS on big-endian architectures
+    (Closes: #1031271)
+
+  [ Jeremy Bicha ]
+  * Cherry-pick an implicit conversion change fix
+
+ -- Jeremy Bicha <jbicha@ubuntu.com>  Thu, 16 Feb 2023 17:58:48 -0500
+
+glib2.0 (2.75.3-1) experimental; urgency=medium
+
+  * New upstream release
+    - Resolves a crash when creating threads in a process with elevated
+      priority, such as wireplumber (Closes: #1031129)
+  * d/copyright: Update
+  * Drop patches that were applied upstream
+  * d/libglib2.0-0.symbols: Update.
+    Two private symbols that were not intended to appear in the ABI were
+    removed. Other Debian packages don't seem to use either.
+  * d/patches: Update all patches that skip tests to ensure all tests
+    produce valid TAP syntax
+
+ -- Simon McVittie <smcv@debian.org>  Mon, 13 Feb 2023 20:49:33 +0000
+
+glib2.0 (2.75.2-1) experimental; urgency=medium
+
+  * New upstream release
+  * d/copyright: Update
+  * Refresh patch series
+  * d/libglib2.0-0.symbols: Sort lines
+  * d/libglib2.0-0.symbols: Update for new ABI
+  * d/libglib2.0-0.symbols: Use stable-branch versions for older symbols.
+    We don't need to keep track of precisely which development release
+    included each symbol: it's enough to generate dependencies on the first
+    stable release that had it. Debian stable releases shouldn't include
+    GLib development releases anyway.
+  * d/p/Include-GObject-s-visibility-header.patch,
+    d/p/build-Don-t-overwrite-build-variables.patch,
+    d/p/glib-compile-schemas-Fix-typo-in-comparison-function.patch:
+    Add some post-release bug fixes from upstream
+  * d/p/tests-Improve-error-message-if-setting-max-processes-to-1.patch,
+    d/p/debian/06_thread_test_ignore_prctl_fail.patch:
+    Split up patch that skipped a test if unable to set RLIMIT_NPROC.
+    The part that improves the error message could be upstreamable, even if
+    skipping the test as a result isn't.
+  * d/p/debian/06_thread_test_ignore_prctl_fail.patch:
+    Try dropping this patch, to reassess whether we still need it.
+  * d/p/garray-Update-NULL-termination-after-copying-array-conten.patch,
+    d/p/garray-Avoid-calling-memcpy-with-no-items.patch:
+    Add proposed patches to fix a test failure
+
+ -- Simon McVittie <smcv@debian.org>  Tue, 10 Jan 2023 13:54:58 +0000
+
+glib2.0 (2.75.0-1) experimental; urgency=medium
+
+  * d/control.in, d/gbp.conf: Branch for experimental
+  * New upstream development release
+  * Refresh patch series, dropping patches that were applied upstream
+  * Update symbols file
+  * d/p/gio-Use-hidden-symbol-visibility-in-static-libraries.patch:
+    Add proposed patch to fix ABI exports
+  * d/p/type-flags-test-Force-G_ENABLE_DIAGNOSTIC-1-to-be-set.patch:
+    Add proposed patch to fix an autopkgtest failure
+
+ -- Simon McVittie <smcv@debian.org>  Sat, 12 Nov 2022 21:13:58 +0000
+
+glib2.0 (2.74.7-1) UNRELEASED; urgency=medium
+
+  * New upstream stable release
+    - Functionally equivalent to 2.74.6-2
+      (other than the version number, the only differences are
+      Windows-specific fixes which do not affect the Debian package)
+    - d/patches: Drop patches that are no longer required
+
+ -- Simon McVittie <smcv@debian.org>  Fri, 14 Apr 2023 15:45:07 +0100
+
 glib2.0 (2.74.6-2) unstable; urgency=medium
 
   * d/patches: Update to upstream 2.74.x branch commit

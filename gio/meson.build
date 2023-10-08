@@ -1,14 +1,18 @@
 gio_c_args = [
   '-DG_LOG_DOMAIN="GLib-GIO"',
-  '-DGIO_COMPILATION',
   '-DGIO_LAUNCH_DESKTOP="@0@"'.format(glib_prefix / multiarch_libexecdir / 'gio-launch-desktop'),
   '-DGIO_MODULE_DIR="@0@"'.format(glib_giomodulesdir),
   '-DLOCALSTATEDIR="@0@"'.format(glib_localstatedir),
 ]
 
-gio_c_args += glib_hidden_visibility_args
+gio_c_args_internal = [
+  '-DGIO_COMPILATION',
+]
 
-# FIXME: Install empty glib_giomodulesdir
+# Install empty glib_giomodulesdir
+install_emptydir(glib_giomodulesdir)
+
+gio_includedir = glib_includedir / 'gio'
 
 gnetworking_h_conf = configuration_data()
 
@@ -168,7 +172,8 @@ gnetworking_h_conf.set('NAMESER_COMPAT_INCLUDE', gnetworking_h_nameser_compat_in
 
 gnetworking_h = configure_file(input : 'gnetworking.h.in',
                                output : 'gnetworking.h',
-                               install_dir : join_paths(get_option('includedir'), 'glib-2.0/gio'),
+                               install_dir : gio_includedir,
+                               install_tag : 'devel',
                                configuration : gnetworking_h_conf)
 
 gdbus_headers = files(
@@ -272,10 +277,6 @@ settings_sources = files(
   'gsettings.c',
 )
 
-if host_system == 'windows'
-  settings_sources += files('gregistrysettingsbackend.c')
-endif
-
 application_headers = files(
   'gapplication.h',
   'gapplicationcommandline.h',
@@ -366,15 +367,17 @@ if host_system != 'windows'
   )
 
   portal_sources = [files(
-    'gdocumentportal.c',
-    'gopenuriportal.c',
-    'gmemorymonitorportal.c',
-    'gnetworkmonitorportal.c',
-    'gpowerprofilemonitorportal.c',
-    'gproxyresolverportal.c',
-    'gtrashportal.c',
-    'gportalsupport.c',
-    'gportalnotificationbackend.c'),
+      'gdocumentportal.c',
+      'gopenuriportal.c',
+      'gmemorymonitorportal.c',
+      'gnetworkmonitorportal.c',
+      'gpowerprofilemonitorportal.c',
+      'gproxyresolverportal.c',
+      'gtrashportal.c',
+      'gportalsupport.c',
+      'gportalnotificationbackend.c',
+      'gsandbox.c',
+    ),
     xdp_dbus_generated
   ]
 
@@ -438,6 +441,7 @@ else
 
   win32_sources += files(
     'gmemorymonitorwin32.c',
+    'gregistrysettingsbackend.c',
     'gwin32registrykey.c',
     'gwin32mount.c',
     'gwin32volumemonitor.c',
@@ -461,6 +465,7 @@ else
   win32_sources += [gio_win_res]
 
   gio_win32_include_headers = files(
+    'gregistrysettingsbackend.h',
     'gwin32inputstream.h',
     'gwin32outputstream.h',
   )
@@ -598,7 +603,7 @@ gio_sources = files(
   'gliststore.c',
 )
 
-if get_option('default_library') != 'static'
+if glib_build_shared
   gio_sources += files ('../glib/gtrace.c')
 endif
 
@@ -742,10 +747,20 @@ gio_headers = files(
   'gliststore.h',
 )
 
+gio_visibility_h = custom_target(
+  output: 'gio-visibility.h',
+  command: [gen_visibility_macros, meson.project_version(), 'visibility-macros', 'GIO', '@OUTPUT@'],
+  install: true,
+  install_dir: gio_includedir,
+  # FIXME: Not needed with Meson >= 0.64.0
+  install_tag: 'devel',
+)
+gio_sources += gio_visibility_h
+
 gio_headers += application_headers
 gio_headers += settings_headers
 gio_headers += gdbus_headers
-install_headers(gio_headers, subdir : 'glib-2.0/gio/')
+install_headers(gio_headers, install_dir : gio_includedir)
 
 # We can't use gnome.mkenums() because the GNOME module looks for glib-mkenums
 # in PATH, which means you can't bootstrap glib with its own glib-mkenums.
@@ -754,7 +769,9 @@ gioenumtypes_h = custom_target('gioenumtypes_h',
   capture : true,
   input : gio_headers,
   install : true,
-  install_dir : join_paths(get_option('includedir'), 'glib-2.0/gio'),
+  install_dir : gio_includedir,
+  # FIXME: Not needed with Meson >= 0.64.0
+  install_tag: 'devel',
   command : [python, glib_mkenums,
              '--template', files('gioenumtypes.h.template'),
              '@INPUT@', gnetworking_h])
@@ -768,7 +785,7 @@ gioenumtypes_c = custom_target('gioenumtypes_c',
              '--template', files('gioenumtypes.c.template'),
              '@INPUT@', gnetworking_h])
 
-gioenumtypes_dep = declare_dependency(sources : [gioenumtypes_h, glib_enumtypes_h])
+gioenumtypes_dep = declare_dependency(sources : [gioenumtypes_h, glib_enumtypes_h, gio_visibility_h])
 
 # inotify
 if glib_conf.has('HAVE_SYS_INOTIFY_H') and have_func_inotify_init1
@@ -833,8 +850,9 @@ libgio = library('gio-2.0',
                   libgobject_dep, libgmodule_dep, selinux_dep, xattr_dep,
                   platform_deps, network_libs, libsysprof_capture_dep,
                   gioenumtypes_dep, gvdb_dep],
-  c_args : gio_c_args,
-  objc_args : gio_c_args,
+  c_args : [gio_c_args, gio_c_args_internal],
+  objc_args : [gio_c_args, gio_c_args_internal],
+  gnu_symbol_visibility : 'hidden',
   # intl.lib is not compatible with SAFESEH
   link_args : [noseh_link_args, glib_link_flags],
 )
@@ -846,6 +864,7 @@ else
 endif
 
 schemas_subdir = join_paths('glib-2.0', 'schemas')
+dtds_subdir = join_paths('glib-2.0', 'dtds')
 
 libgio_dep = declare_dependency(link_with : libgio,
   dependencies : [libgmodule_dep, libgobject_dep, gioenumtypes_dep],
@@ -853,23 +872,27 @@ libgio_dep = declare_dependency(link_with : libgio,
   variables : [
     'schemasdir=' + join_paths(glib_datadir, schemas_subdir),
     'giomoduledir=' + glib_giomodulesdir,
+    'dtdsdir=' + join_paths(glib_datadir, dtds_subdir)
   ],
 )
 
 pkg.generate(libgio,
   requires : ['glib-2.0', 'gobject-2.0'],
-  variables : ['datadir=' + join_paths('${prefix}', get_option('datadir')),
-               'schemasdir=' + join_paths('${datadir}', schemas_subdir),
-               'bindir=' + join_paths('${prefix}', get_option('bindir')),
-               'giomoduledir=' + pkgconfig_giomodulesdir,
-               'gio=' + join_paths('${bindir}', 'gio'),
-               'gio_querymodules=@0@'.format(pkgconfig_multiarch_bindir / 'gio-querymodules'),
-               'glib_compile_schemas=@0@'.format(pkgconfig_multiarch_bindir / 'glib-compile-schemas'),
-               'glib_compile_resources=' + join_paths('${bindir}', 'glib-compile-resources'),
-               'gdbus=' + join_paths('${bindir}', 'gdbus'),
-               'gdbus_codegen=' + join_paths('${bindir}', 'gdbus-codegen'),
-               'gresource=' + join_paths('${bindir}', 'gresource'),
-               'gsettings=' + join_paths('${bindir}', 'gsettings')],
+  variables : [
+    'datadir=' + '${prefix}' / get_option('datadir'),
+    'schemasdir=' + '${datadir}' / schemas_subdir,
+    'dtdsdir=' + '${datadir}' / dtds_subdir,
+    'bindir=' + '${prefix}' / get_option('bindir'),
+    'giomoduledir=' + pkgconfig_giomodulesdir,
+    'gio=' + '${bindir}' / 'gio',
+    'gio_querymodules=' + pkgconfig_multiarch_bindir / 'gio-querymodules',
+    'glib_compile_schemas=' + pkgconfig_multiarch_bindir / 'glib-compile-schemas',
+    'glib_compile_resources=' + '${bindir}' / 'glib-compile-resources',
+    'gdbus=' + '${bindir}' /'gdbus',
+    'gdbus_codegen=' + '${bindir}' / 'gdbus-codegen',
+    'gresource=' + '${bindir}' / 'gresource',
+    'gsettings=' + '${bindir}' / 'gsettings',
+  ],
   version : glib_version,
   install_dir : glib_pkgconfigreldir,
   filebase : 'gio-2.0',
@@ -911,7 +934,7 @@ endif
 
 # Dependencies used by executables below
 have_libelf = false
-libelf = dependency('libelf', version : '>= 0.8.12', required : get_option ('libelf'))
+libelf = dependency('libelf', version : '>= 0.8.12', required : false)
 if libelf.found()
   have_libelf = true
 else
@@ -1001,6 +1024,10 @@ glib_compile_resources = executable('glib-compile-resources',
   # intl.lib is not compatible with SAFESEH
   link_args : noseh_link_args,
   dependencies : [libgio_dep, libgobject_dep, libgmodule_dep, libglib_dep, gvdb_dep])
+install_data('gresource.dtd',
+  install_dir: get_option('datadir') / dtds_subdir,
+  install_tag: 'devel',
+)
 
 # Cannot override those programs in cross compilation case because they are
 # native executables that cannot be run on the build machine.
@@ -1051,6 +1078,7 @@ if enable_systemtap
     output : '@0@.stp'.format(libgio.full_path().split('/').get(-1)),
     configuration : stp_cdata,
     install_dir : tapset_install_dir,
+    install_tag : 'systemtap',
   )
 endif
 
