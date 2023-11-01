@@ -1,5 +1,12 @@
-Index: glib2.0-2.78.0/gio/glocalfile.c
-===================================================================
+Description: fix gio trash handle long file name fail
+ When gio deletes a file, it will create an info file for the deleted file. The name of the info file is based on the
+ original name with the suffix ".trashinfo" added and uniquely processed. When the name of the deleted file is too
+ long, it will fail to create the info file, or fail to write data to the info file.
+ .
+ The solution is to reduce the length of the info file name.
+Author: wangrong1069
+Bug-Deepin: https://github.com/deepin-community/glib2.0/pull/3
+Forwarded: no
 --- glib2.0-2.78.0.orig/gio/glocalfile.c
 +++ glib2.0-2.78.0/gio/glocalfile.c
 @@ -1973,6 +1973,46 @@ _g_local_file_is_lost_found_dir (const c
