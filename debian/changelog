@@ -1,3 +1,9 @@
+glib2.0 (2.78.0-2deepin1) unstable; urgency=medium
+
+  * fix gio trash handle long file name fail 
+
+ -- wangrong <wangrong@uniontech.com>  Wed, 01 Nov 2023 10:15:29 +0800
+
 glib2.0 (2.78.0-2) unstable; urgency=medium
 
   * d/p/gthreadedresolver-Fix-race-between-source-callbacks-and-f.patch:
