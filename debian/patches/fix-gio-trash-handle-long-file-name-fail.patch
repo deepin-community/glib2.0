@@ -6,7 +6,7 @@ Description: fix gio trash handle long file name fail
  The solution is to reduce the length of the info file name.
 Author: wangrong1069
 Bug-Deepin: https://github.com/deepin-community/glib2.0/pull/3
-Forwarded: no
+Forwarded: https://gitlab.gnome.org/GNOME/glib/-/merge_requests/3697
 --- glib2.0-2.78.0.orig/gio/glocalfile.c
 +++ glib2.0-2.78.0/gio/glocalfile.c
 @@ -1973,6 +1973,46 @@ _g_local_file_is_lost_found_dir (const c
