@@ -1,8 +1,102 @@
-glib2.0 (2.78.0-2deepin1) unstable; urgency=medium
+glib2.0 (2.78.4-1) unstable; urgency=medium
 
-  * fix gio trash handle long file name fail 
+  * New upstream release
+  * Backport selected packaging changes from experimental:
+    - d/control: Make build-dependencies cross-satisfiable.
+      python3-packaging is not (currently?) Multi-Arch: foreign. We only
+      need this for gdbus-codegen, so a version suitable for the build
+      architecture is correct.
+    - d/control: Depend on pkgconf in preference to pkg-config
+    - d/clean: Canonicalize order
 
- -- wangrong <wangrong@uniontech.com>  Wed, 01 Nov 2023 10:15:29 +0800
+ -- Simon McVittie <smcv@debian.org>  Thu, 15 Feb 2024 13:36:05 +0000
+
+glib2.0 (2.78.3-2) unstable; urgency=medium
+
+  [ Simon McVittie ]
+  * Branch packaging for 2.78.x
+  * Depend on python3-packaging instead of python3-distutils
+
+  [ Jeremy Bícha ]
+  * Cherry-pick patch to stop using distutils: no longer included in Python 3.12
+
+ -- Jeremy Bícha <jbicha@ubuntu.com>  Tue, 23 Jan 2024 09:48:48 -0500
+
+glib2.0 (2.78.3-1) unstable; urgency=medium
+
+  * New upstream stable release
+    - Functionally equivalent to 2.78.2-1
+  * d/p/xdgmime-Update-to-upstream-commit-c2c814d4051f232.patch:
+    Drop patch, included in the new upstream release
+  * d/p/debian/Disable-some-tests-on-slow-architectures-which-keep-faili.patch,
+    d/tests:
+    Skip more threading-related tests which regularly time out on 32-bit
+    ARM, and run them as "flaky" tests during autopkgtest
+    (Mitigates: #1023652, #1057797)
+
+ -- Simon McVittie <smcv@debian.org>  Fri, 08 Dec 2023 16:16:19 +0000
+
+glib2.0 (2.78.2-1) unstable; urgency=medium
+
+  * New upstream stable release
+    - Handle broken MIME type definitions with circular inheritance
+    - Diagnose invalid input to g_utf8_collate_key() as a programming error
+      rather than crashing
+    - All other changes were included as patches in 2.78.1-2 and -4
+  * Drop patches that were included in the new upstream release
+  * Adjust 2.78.1-3 changelog entry to mention why dh-sequence-gnome
+    is still desirable
+  * d/p/xdgmime-Update-to-upstream-commit-c2c814d4051f232.patch:
+    Add a post-release bug fix from upstream to fix regressions in xdgmime
+  * d/copyright: Remove unused stanza for m4macros/attributes.m4.
+    This file is no longer shipped. This also means we can drop the license
+    stanza for "GPL-2+ with Autoconf exception".
+
+ -- Simon McVittie <smcv@debian.org>  Wed, 06 Dec 2023 20:45:11 +0000
+
+glib2.0 (2.78.1-4) unstable; urgency=medium
+
+  * d/p/tests-Fix-a-race-in-thread-pool-slow.patch:
+    Add patch from upstream git fixing a race condition in
+    a test (hopefully Closes: #1055783)
+
+ -- Simon McVittie <smcv@debian.org>  Mon, 13 Nov 2023 16:37:33 +0000
+
+glib2.0 (2.78.1-3) unstable; urgency=medium
+
+  * Restore Build-Depends: dh-sequence-gnome since it is used by Ubuntu,
+    to move translations into language packs
+
+ -- Jeremy Bícha <jbicha@ubuntu.com>  Wed, 08 Nov 2023 14:09:59 +0200
+
+glib2.0 (2.78.1-2) unstable; urgency=medium
+
+  * d/patches: Update to upstream glib-2-78 branch commit 2.78.1-9-gb8ef341a9
+    - In tests, don't assume that sh optimizes simple commands into exec,
+      hopefully fixing the intermittent gsubprocess test failures on buildds
+      (especially armhf)
+    - In tests, fix detection of PTRACE_O_EXITKILL
+    - Avoid calling a function with side-effects inside
+      g_return_val_if_fail()
+    - Tell LeakSanitizer to ignore an intentional one-per-process leak in
+      the GQuark infrastructure
+    - Translation update: uk
+  * d/control: Stop generating from a template.
+    We don't use any of the other dh-sequence-gnome features (there are no
+    libtool archives, and we don't use the gnome:Foo family of substvars)
+    so drop the build-dependency on dh-sequence-gnome.
+  * Remove version constraints unnecessary since bullseye (oldstable)
+  * debian/libglib2.0-doc.maintscript: Remove, unnecessary since bullseye
+  * Remove redundant Name from debian/upstream/metadata
+
+ -- Simon McVittie <smcv@debian.org>  Thu, 02 Nov 2023 11:07:06 +0000
+
+glib2.0 (2.78.1-1) unstable; urgency=medium
+
+  * New upstream release
+  * Drop patches applied in new release
+
+ -- Jeremy Bícha <jbicha@ubuntu.com>  Wed, 25 Oct 2023 10:51:14 -0400
 
 glib2.0 (2.78.0-2) unstable; urgency=medium
 

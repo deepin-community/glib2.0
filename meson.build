@@ -1,5 +1,5 @@
 project('glib', 'c',
-  version : '2.78.0',
+  version : '2.78.4',
   # NOTE: See the policy in docs/meson-version.md before changing the Meson dependency
   meson_version : '>= 0.60.0',
   default_options : [
@@ -2105,7 +2105,7 @@ if not pcre2.found()
   # static flags are automatically enabled by the subproject if it's built
   # with default_library=static
   use_pcre2_static_flag = false
-elif host_system == 'windows'
+elif host_system == 'windows' and pcre2.type_name() != 'internal'
   pcre2_static = cc.links('''#define PCRE2_STATIC
                              #define PCRE2_CODE_UNIT_WIDTH 8
                              #include <pcre2.h>
@@ -2434,6 +2434,10 @@ with open(output, "w") as f:
 ''', dtrace.full_path(), '-h', '-s', '@INPUT@', '-o', '@OUTPUT@'])
   glib_conf.set('HAVE_DTRACE', 1)
   enable_dtrace = true
+endif
+
+if cc.has_header_symbol('sys/ptrace.h', 'PTRACE_O_EXITKILL')
+  glib_conf.set('HAVE_PTRACE_O_EXITKILL', 1)
 endif
 
 # systemtap
