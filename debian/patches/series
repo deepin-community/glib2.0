@@ -17,3 +17,5 @@ debian/tests-Skip-debugcontroller-test.patch
 debian/testfilemonitor-Skip-if-we-are-avoiding-flaky-tests.patch
 debian/gdesktopappinfo-Try-using-x-terminal-emulator-for-Termina.patch
 Switch-from-the-deprecated-distutils-module-to-the-packag.patch
+# https://gitlab.gnome.org/GNOME/glib/-/merge_requests/3697
+fix-gio-trash-handle-long-file-name-fail.patch
