@@ -1,11 +1,4 @@
-Update-Catalan-translation.patch
-Updated-Spanish-translation.patch
-Update-Slovenian-translation.patch
-gthreadedresolver-Fix-race-between-source-callbacks-and-f.patch
-Update-French-translation.patch
-Update-Italian-translation.patch
-Update-Chinese-China-translation.patch
-Update-Russian-translation.patch
+tests-Fix-a-race-in-thread-pool-slow.patch
 01_gettext-desktopfiles.patch
 0001-timer-test-use-volatile-for-locals.patch
 gwakeuptest-Be-less-parallel-unless-invoked-with-m-slow.patch
@@ -23,4 +16,4 @@ debian/Add-extra-debug-to-memory-monitor-dbus-test.patch
 debian/tests-Skip-debugcontroller-test.patch
 debian/testfilemonitor-Skip-if-we-are-avoiding-flaky-tests.patch
 debian/gdesktopappinfo-Try-using-x-terminal-emulator-for-Termina.patch
-fix-gio-trash-handle-long-file-name-fail.patch
+Switch-from-the-deprecated-distutils-module-to-the-packag.patch
