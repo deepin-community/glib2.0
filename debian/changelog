@@ -1,3 +1,9 @@
+glib2.0 (2.78.3-2deepin2) unstable; urgency=medium
+
+  * add fix-test-timeout.patch.
+
+ -- LiChengGang <lichenggang@uniontech.com>  Sun, 24 Mar 2024 15:43:13 +0800
+
 glib2.0 (2.78.3-2deepin1) unstable; urgency=medium
 
   [ wangrong ]
