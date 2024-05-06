@@ -9,7 +9,6 @@ Build-Depends: dbus-daemon <!nocheck> <!noinsttest>,
                dh-sequence-python3,
                docbook-xml,
                docbook-xsl,
-               dpkg-dev (>= 1.22.5),
                gettext,
                libdbus-1-dev <!nocheck> <!noinsttest>,
                libelf-dev,
@@ -46,11 +45,9 @@ Homepage: https://wiki.gnome.org/Projects/GLib
 Vcs-Browser: https://salsa.debian.org/gnome-team/glib
 Vcs-Git: https://salsa.debian.org/gnome-team/glib.git
 
-Package: libglib2.0-0t64
-Replaces: libglib2.0-0 (<< 2.80.0-7~)
+Package: libglib2.0-0
 Architecture: any
-Provides: ${t64:Provides},
-          libgio-2.0-0 (= ${binary:Version}),
+Provides: libgio-2.0-0 (= ${binary:Version}),
           libglib-2.0-0 (= ${binary:Version}),
           libgmodule-2.0-0 (= ${binary:Version}),
           libgobject-2.0-0 (= ${binary:Version}),
@@ -137,7 +134,7 @@ Section: libdevel
 Architecture: any
 Multi-Arch: same
 Depends: libffi-dev,
-         libglib2.0-0t64 (= ${binary:Version}),
+         libglib2.0-0 (= ${binary:Version}),
          libglib2.0-bin (= ${binary:Version}),
          libglib2.0-dev-bin (= ${binary:Version}),
          libglib2.0-dev-bin-${local:DEB-HOST-ARCH-OS} (= ${binary:Version}),
@@ -160,7 +157,7 @@ Description: Development files for the GLib library
  as trees, hashes, lists, and strings.  It is a useful general-purpose
  C library used by projects such as GTK+, GIMP, and GNOME.
  .
- This package is needed to compile programs against libglib2.0-0t64,
+ This package is needed to compile programs against libglib2.0-0,
  as only it includes the header files and static libraries (optionally)
  needed for compiling.
  .
