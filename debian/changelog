@@ -1,3 +1,9 @@
+glib2.0 (2.80.1-1deepin1) UNRELEASED; urgency=medium
+
+  * Revert 64-bit time_t changes.
+
+ -- Tianyu Chen <sweetyfish@deepin.org>  Thu, 09 May 2024 13:20:48 +0800
+
 glib2.0 (2.80.1-1) unstable; urgency=medium
 
   * New upstream stable release
