@@ -17,3 +17,8 @@ workarounds/Skip-memory-monitor-dbus-test-if-not-specifically-request.patch
 workarounds/tests-Skip-debugcontroller-test.patch
 workarounds/testfilemonitor-Skip-if-we-are-avoiding-flaky-tests.patch
 debian/girepository-Describe-the-Debian-specific-cross-prefixed-.patch
+
+# https://gitlab.gnome.org/GNOME/glib/-/merge_requests/3697
+fix-gio-trash-handle-long-file-name-fail.patch
+fix-test-timeout.patch
+
