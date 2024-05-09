@@ -1,4 +1,4 @@
-gdbus_example_objectmanager_visibility_h = configure_file(
+gdbus_example_objectmanager_visibility_h = custom_target('gdbus-example-objectmanager-visibility',
   output: 'gdbus-example-objectmanager-visibility.h',
   command: [gen_visibility_macros, '2.0', 'visibility-macros',
             'GDBUS_OBJECT_MANAGER_EXAMPLE', '@OUTPUT@'],
@@ -20,7 +20,10 @@ gdbus_example_objectmanager_generated = custom_target('objectmanager-gen',
              '--generate-docbook', 'objectmanager-gen',
              '--symbol-decorator', 'GDBUS_OBJECT_MANAGER_EXAMPLE_AVAILABLE_IN_ALL',
              '--symbol-decorator-header', 'gdbus-example-objectmanager-visibility.h',
-             '@INPUT@'])
+             '@INPUT@'],
+  depend_files : gdbus_codegen_built_files,
+  depends : gdbus_codegen_built_targets,
+)
 
 gdbus_example_objectmanager_rst_gen = custom_target('objectmanager-rst-gen',
   input: gdbus_example_objectmanager_xml,
@@ -36,6 +39,8 @@ gdbus_example_objectmanager_rst_gen = custom_target('objectmanager-rst-gen',
     '--output-directory', '@OUTDIR@',
     '@INPUT@',
   ],
+  depend_files: gdbus_codegen_built_files,
+  depends: gdbus_codegen_built_targets,
 )
 
 extra_c_args = []
