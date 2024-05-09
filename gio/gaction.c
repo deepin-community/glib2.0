@@ -28,62 +28,52 @@
 G_DEFINE_INTERFACE (GAction, g_action, G_TYPE_OBJECT)
 
 /**
- * SECTION:gaction
- * @title: GAction
- * @short_description: An action interface
- * @include: gio/gio.h
+ * GAction:
  *
- * #GAction represents a single named action.
+ * `GAction` represents a single named action.
  *
  * The main interface to an action is that it can be activated with
- * g_action_activate().  This results in the 'activate' signal being
- * emitted.  An activation has a #GVariant parameter (which may be
- * %NULL).  The correct type for the parameter is determined by a static
+ * [method@Gio.Action.activate]. This results in the 'activate' signal being
+ * emitted. An activation has a `GVariant` parameter (which may be
+ * `NULL`). The correct type for the parameter is determined by a static
  * parameter type (which is given at construction time).
  *
  * An action may optionally have a state, in which case the state may be
- * set with g_action_change_state().  This call takes a #GVariant.  The
+ * set with [method@Gio.Action.change_state]. This call takes a #GVariant. The
  * correct type for the state is determined by a static state type
  * (which is given at construction time).
  *
  * The state may have a hint associated with it, specifying its valid
  * range.
  *
- * #GAction is merely the interface to the concept of an action, as
+ * `GAction` is merely the interface to the concept of an action, as
  * described above.  Various implementations of actions exist, including
- * #GSimpleAction.
+ * [class@Gio.SimpleAction].
  *
  * In all cases, the implementing class is responsible for storing the
- * name of the action, the parameter type, the enabled state, the
- * optional state type and the state and emitting the appropriate
- * signals when these change.  The implementor is responsible for filtering
- * calls to g_action_activate() and g_action_change_state() for type
- * safety and for the state being enabled.
+ * name of the action, the parameter type, the enabled state, the optional
+ * state type and the state and emitting the appropriate signals when these
+ * change. The implementor is responsible for filtering calls to
+ * [method@Gio.Action.activate] and [method@Gio.Action.change_state]
+ * for type safety and for the state being enabled.
  *
- * Probably the only useful thing to do with a #GAction is to put it
- * inside of a #GSimpleActionGroup.
- **/
-
-/**
- * GAction:
- *
- * #GAction is an opaque data structure and can only be accessed
- * using the following functions.
+ * Probably the only useful thing to do with a `GAction` is to put it
+ * inside of a [class@Gio.SimpleActionGroup].
  **/
 
 /**
  * GActionInterface:
- * @get_name: the virtual function pointer for g_action_get_name()
- * @get_parameter_type: the virtual function pointer for g_action_get_parameter_type()
- * @get_state_type: the virtual function pointer for g_action_get_state_type()
- * @get_state_hint: the virtual function pointer for g_action_get_state_hint()
- * @get_enabled: the virtual function pointer for g_action_get_enabled()
- * @get_state: the virtual function pointer for g_action_get_state()
- * @change_state: the virtual function pointer for g_action_change_state()
- * @activate: the virtual function pointer for g_action_activate().  Note that #GAction does not have an
+ * @get_name: the virtual function pointer for [method@Gio.Action.get_name]
+ * @get_parameter_type: the virtual function pointer for [method@Gio.Action.get_parameter_type]
+ * @get_state_type: the virtual function pointer for [method@Gio.Action.get_state_type]
+ * @get_state_hint: the virtual function pointer for [method@Gio.Action.get_state_hint]
+ * @get_enabled: the virtual function pointer for [method@Gio.Action.get_enabled]
+ * @get_state: the virtual function pointer for [method@Gio.Action.get_state]
+ * @change_state: the virtual function pointer for [method@Gio.Action.change_state]
+ * @activate: the virtual function pointer for [method@Gio.Action.activate].  Note that [type@Gio.Action] does not have an
  *            'activate' signal but that implementations of it may have one.
  *
- * The virtual function table for #GAction.
+ * The virtual function table for [type@Gio.Action].
  *
  * Since: 2.28
  */
@@ -95,14 +85,12 @@ g_action_default_init (GActionInterface *iface)
    * GAction:name:
    *
    * The name of the action.  This is mostly meaningful for identifying
-   * the action once it has been added to a #GActionGroup. It is immutable.
+   * the action once it has been added to a [type@Gio.ActionGroup]. It is immutable.
    *
    * Since: 2.28
    **/
   g_object_interface_install_property (iface,
-                                       g_param_spec_string ("name",
-                                                            P_("Action Name"),
-                                                            P_("The name used to invoke the action"),
+                                       g_param_spec_string ("name", NULL, NULL,
                                                             NULL,
                                                             G_PARAM_READABLE |
                                                             G_PARAM_STATIC_STRINGS));
@@ -111,15 +99,13 @@ g_action_default_init (GActionInterface *iface)
    * GAction:parameter-type:
    *
    * The type of the parameter that must be given when activating the
-   * action. This is immutable, and may be %NULL if no parameter is needed when
+   * action. This is immutable, and may be `NULL` if no parameter is needed when
    * activating the action.
    *
    * Since: 2.28
    **/
   g_object_interface_install_property (iface,
-                                       g_param_spec_boxed ("parameter-type",
-                                                           P_("Parameter Type"),
-                                                           P_("The type of GVariant passed to activate()"),
+                                       g_param_spec_boxed ("parameter-type", NULL, NULL,
                                                            G_TYPE_VARIANT_TYPE,
                                                            G_PARAM_READABLE |
                                                            G_PARAM_STATIC_STRINGS));
@@ -129,15 +115,13 @@ g_action_default_init (GActionInterface *iface)
    *
    * If @action is currently enabled.
    *
-   * If the action is disabled then calls to g_action_activate() and
-   * g_action_change_state() have no effect.
+   * If the action is disabled then calls to [method@Gio.Action.activate] and
+   * [method@Gio.Action.change_state] have no effect.
    *
    * Since: 2.28
    **/
   g_object_interface_install_property (iface,
-                                       g_param_spec_boolean ("enabled",
-                                                             P_("Enabled"),
-                                                             P_("If the action can be activated"),
+                                       g_param_spec_boolean ("enabled", NULL, NULL,
                                                              TRUE,
                                                              G_PARAM_READABLE |
                                                              G_PARAM_STATIC_STRINGS));
@@ -145,15 +129,13 @@ g_action_default_init (GActionInterface *iface)
   /**
    * GAction:state-type:
    *
-   * The #GVariantType of the state that the action has, or %NULL if the
+   * The [type@GLib.VariantType] of the state that the action has, or `NULL` if the
    * action is stateless. This is immutable.
    *
    * Since: 2.28
    **/
   g_object_interface_install_property (iface,
-                                       g_param_spec_boxed ("state-type",
-                                                           P_("State Type"),
-                                                           P_("The type of the state kept by the action"),
+                                       g_param_spec_boxed ("state-type", NULL, NULL,
                                                            G_TYPE_VARIANT_TYPE,
                                                            G_PARAM_READABLE |
                                                            G_PARAM_STATIC_STRINGS));
@@ -166,9 +148,7 @@ g_action_default_init (GActionInterface *iface)
    * Since: 2.28
    **/
   g_object_interface_install_property (iface,
-                                       g_param_spec_variant ("state",
-                                                             P_("State"),
-                                                             P_("The state the action is in"),
+                                       g_param_spec_variant ("state", NULL, NULL,
                                                              G_VARIANT_TYPE_ANY,
                                                              NULL,
                                                              G_PARAM_READABLE |

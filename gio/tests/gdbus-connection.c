@@ -549,9 +549,13 @@ test_connection_signals (void)
   guint s1b;
   guint s2;
   guint s3;
+  guint s4;
+  guint s5;
   gint count_s1;
   gint count_s1b;
   gint count_s2;
+  gint count_s4;
+  gint count_s5;
   gint count_name_owner_changed;
   GError *error;
   gboolean ret;
@@ -618,6 +622,26 @@ test_connection_signals (void)
                                            test_connection_signal_handler,
                                            &count_name_owner_changed,
                                            NULL);
+  s4 = g_dbus_connection_signal_subscribe (c1,
+                                           ":1.2",  /* sender */
+                                           "org.gtk.GDBus.ExampleInterface",  /* interface */
+                                           "FooArg0",  /* member */
+                                           "/org/gtk/GDBus/ExampleInterface",  /* path */
+                                           "some-arg0",
+                                           G_DBUS_SIGNAL_FLAGS_NONE,
+                                           test_connection_signal_handler,
+                                           &count_s4,
+                                           NULL);
+  s5 = g_dbus_connection_signal_subscribe (c1,
+                                           ":1.2",  /* sender */
+                                           "org.gtk.GDBus.ExampleInterface",  /* interface */
+                                           "FooArg0",  /* member */
+                                           "/org/gtk/GDBus/ExampleInterface",  /* path */
+                                           NULL,
+                                           G_DBUS_SIGNAL_FLAGS_NONE,
+                                           test_connection_signal_handler,
+                                           &count_s5,
+                                           NULL);
   /* Note that s1b is *just like* s1 - this is to catch a bug where N
    * subscriptions of the same rule causes N calls to each of the N
    * subscriptions instead of just 1 call to each of the N subscriptions.
@@ -636,10 +660,14 @@ test_connection_signals (void)
   g_assert_cmpuint (s1b, !=, 0);
   g_assert_cmpuint (s2, !=, 0);
   g_assert_cmpuint (s3, !=, 0);
+  g_assert_cmpuint (s4, !=, 0);
+  g_assert_cmpuint (s5, !=, 0);
 
   count_s1 = 0;
   count_s1b = 0;
   count_s2 = 0;
+  count_s4 = 0;
+  count_s5 = 0;
   count_name_owner_changed = 0;
 
   /*
@@ -712,6 +740,38 @@ test_connection_signals (void)
   g_assert_cmpint (count_s1, ==, 1);
   g_assert_cmpint (count_s2, ==, 2);
 
+  /* Emit another signal on c2 with and without arg0 set, to check matching on that.
+   * Matching should fail on s4 when the signal is not emitted with an arg0. It
+   * should succeed on s5 both times, as that doesn’t require an arg0 match. */
+  ret = g_dbus_connection_emit_signal (c2,
+                                       NULL, /* destination bus name */
+                                       "/org/gtk/GDBus/ExampleInterface",
+                                       "org.gtk.GDBus.ExampleInterface",
+                                       "FooArg0",
+                                       NULL,
+                                       &error);
+  g_assert_no_error (error);
+  g_assert_true (ret);
+
+  while (count_s5 < 1)
+    g_main_loop_run (loop);
+  g_assert_cmpint (count_s5, ==, 1);
+
+  ret = g_dbus_connection_emit_signal (c2,
+                                       NULL, /* destination bus name */
+                                       "/org/gtk/GDBus/ExampleInterface",
+                                       "org.gtk.GDBus.ExampleInterface",
+                                       "FooArg0",
+                                       g_variant_new_parsed ("('some-arg0',)"),
+                                       &error);
+  g_assert_no_error (error);
+  g_assert_true (ret);
+
+  while (count_s4 < 1)
+    g_main_loop_run (loop);
+  g_assert_cmpint (count_s4, ==, 1);
+  g_assert_cmpint (count_s5, ==, 2);
+
   /*
    * Also to check the total amount of NameOwnerChanged signals - use a 5 second ceiling
    * to avoid spinning forever
@@ -724,11 +784,15 @@ test_connection_signals (void)
   g_assert_cmpint (count_s1, ==, 1);
   g_assert_cmpint (count_s2, ==, 2);
   g_assert_cmpint (count_name_owner_changed, ==, 2);
+  g_assert_cmpint (count_s4, ==, 1);
+  g_assert_cmpint (count_s5, ==, 2);
 
   g_dbus_connection_signal_unsubscribe (c1, s1);
   g_dbus_connection_signal_unsubscribe (c1, s2);
   g_dbus_connection_signal_unsubscribe (c1, s3);
   g_dbus_connection_signal_unsubscribe (c1, s1b);
+  g_dbus_connection_signal_unsubscribe (c1, s4);
+  g_dbus_connection_signal_unsubscribe (c1, s5);
 
   g_object_unref (c1);
   g_object_unref (c2);
@@ -742,6 +806,7 @@ test_match_rule (GDBusConnection  *connection,
                  GDBusSignalFlags  flags,
                  gchar            *arg0_rule,
                  gchar            *arg0,
+                 const gchar      *signal_type,
                  gboolean          should_match)
 {
   guint subscription_ids[2];
@@ -766,7 +831,7 @@ test_match_rule (GDBusConnection  *connection,
 
   g_dbus_connection_emit_signal (connection,
                                  NULL, "/", "org.gtk.ExampleInterface",
-                                 "Foo", g_variant_new ("(s)", arg0),
+                                 "Foo", g_variant_new (signal_type, arg0),
                                  &error);
   g_assert_no_error (error);
 
@@ -793,22 +858,28 @@ test_connection_signal_match_rules (void)
   session_bus_up ();
   con = g_bus_get_sync (G_BUS_TYPE_SESSION, NULL, NULL);
 
-  test_match_rule (con, G_DBUS_SIGNAL_FLAGS_NONE, "foo", "foo", TRUE);
-  test_match_rule (con, G_DBUS_SIGNAL_FLAGS_NONE, "foo", "bar", FALSE);
+  test_match_rule (con, G_DBUS_SIGNAL_FLAGS_NONE, "foo", "foo", "(s)", TRUE);
+  test_match_rule (con, G_DBUS_SIGNAL_FLAGS_NONE, "foo", "bar", "(s)", FALSE);
 
-  test_match_rule (con, G_DBUS_SIGNAL_FLAGS_MATCH_ARG0_NAMESPACE, "org.gtk", "", FALSE);
-  test_match_rule (con, G_DBUS_SIGNAL_FLAGS_MATCH_ARG0_NAMESPACE, "org.gtk", "org", FALSE);
-  test_match_rule (con, G_DBUS_SIGNAL_FLAGS_MATCH_ARG0_NAMESPACE, "org.gtk", "org.gtk", TRUE);
-  test_match_rule (con, G_DBUS_SIGNAL_FLAGS_MATCH_ARG0_NAMESPACE, "org.gtk", "org.gtk.Example", TRUE);
-  test_match_rule (con, G_DBUS_SIGNAL_FLAGS_MATCH_ARG0_NAMESPACE, "org.gtk", "org.gtk+", FALSE);
+  test_match_rule (con, G_DBUS_SIGNAL_FLAGS_MATCH_ARG0_NAMESPACE, "org.gtk", "", "(s)", FALSE);
+  test_match_rule (con, G_DBUS_SIGNAL_FLAGS_MATCH_ARG0_NAMESPACE, "org.gtk", "org", "(s)", FALSE);
+  test_match_rule (con, G_DBUS_SIGNAL_FLAGS_MATCH_ARG0_NAMESPACE, "org.gtk", "org.gtk", "(s)", TRUE);
+  test_match_rule (con, G_DBUS_SIGNAL_FLAGS_MATCH_ARG0_NAMESPACE, "org.gtk", "org.gtk.Example", "(s)", TRUE);
+  test_match_rule (con, G_DBUS_SIGNAL_FLAGS_MATCH_ARG0_NAMESPACE, "org.gtk", "org.gtk+", "(s)", FALSE);
 
-  test_match_rule (con, G_DBUS_SIGNAL_FLAGS_MATCH_ARG0_PATH, "/", "/", TRUE);
-  test_match_rule (con, G_DBUS_SIGNAL_FLAGS_MATCH_ARG0_PATH, "/", "", FALSE);
-  test_match_rule (con, G_DBUS_SIGNAL_FLAGS_MATCH_ARG0_PATH, "/org/gtk/Example", "/org/gtk/Example", TRUE);
-  test_match_rule (con, G_DBUS_SIGNAL_FLAGS_MATCH_ARG0_PATH, "/org/gtk/", "/org/gtk/Example", TRUE);
-  test_match_rule (con, G_DBUS_SIGNAL_FLAGS_MATCH_ARG0_PATH, "/org/gtk/Example", "/org/gtk/", TRUE);
-  test_match_rule (con, G_DBUS_SIGNAL_FLAGS_MATCH_ARG0_PATH, "/org/gtk/Example", "/org/gtk", FALSE);
-  test_match_rule (con, G_DBUS_SIGNAL_FLAGS_MATCH_ARG0_PATH, "/org/gtk+", "/org/gtk", FALSE);
+  test_match_rule (con, G_DBUS_SIGNAL_FLAGS_MATCH_ARG0_PATH, "/", "/", "(s)", TRUE);
+  test_match_rule (con, G_DBUS_SIGNAL_FLAGS_MATCH_ARG0_PATH, "/", "", "(s)", FALSE);
+  test_match_rule (con, G_DBUS_SIGNAL_FLAGS_MATCH_ARG0_PATH, "/org/gtk/Example", "/org/gtk/Example", "(s)", TRUE);
+  test_match_rule (con, G_DBUS_SIGNAL_FLAGS_MATCH_ARG0_PATH, "/org/gtk/", "/org/gtk/Example", "(s)", TRUE);
+  test_match_rule (con, G_DBUS_SIGNAL_FLAGS_MATCH_ARG0_PATH, "/org/gtk/Example", "/org/gtk/", "(s)", TRUE);
+  test_match_rule (con, G_DBUS_SIGNAL_FLAGS_MATCH_ARG0_PATH, "/org/gtk/Example", "/org/gtk", "(s)", FALSE);
+  test_match_rule (con, G_DBUS_SIGNAL_FLAGS_MATCH_ARG0_PATH, "/org/gtk+", "/org/gtk", "(s)", FALSE);
+
+  test_match_rule (con, G_DBUS_SIGNAL_FLAGS_MATCH_ARG0_PATH, "/", "/", "(o)", TRUE);
+  test_match_rule (con, G_DBUS_SIGNAL_FLAGS_MATCH_ARG0_PATH, "/org/gtk/Example", "/org/gtk/Example", "(o)", TRUE);
+  test_match_rule (con, G_DBUS_SIGNAL_FLAGS_MATCH_ARG0_PATH, "/org/gtk/", "/org/gtk/Example", "(o)", TRUE);
+  test_match_rule (con, G_DBUS_SIGNAL_FLAGS_MATCH_ARG0_PATH, "/org/gtk/Example", "/org/gtk", "(o)", FALSE);
+  test_match_rule (con, G_DBUS_SIGNAL_FLAGS_MATCH_ARG0_PATH, "/org/gtk+", "/org/gtk", "(o)", FALSE);
 
   g_object_unref (con);
   session_bus_down ();
@@ -1209,6 +1280,70 @@ test_connection_serials (void)
 /* ---------------------------------------------------------------------------------------------------- */
 
 static void
+get_connection_cb_expect_cancel (GObject       *source_object,
+                                 GAsyncResult  *res,
+                                 gpointer       user_data)
+{
+  GDBusConnection *c;
+  GError *error;
+
+  error = NULL;
+  c = g_bus_get_finish (res, &error);
+
+  /* unref here to avoid timeouts when the test fails */
+  if (c)
+    g_object_unref (c);
+
+  g_assert_error (error, G_IO_ERROR, G_IO_ERROR_CANCELLED);
+  g_assert_null (c);
+
+  g_error_free (error);
+}
+
+static void
+get_connection_cb_expect_success (GObject       *source_object,
+                                  GAsyncResult  *res,
+                                  gpointer       user_data)
+{
+  GDBusConnection *c;
+  GError *error;
+
+  error = NULL;
+  c = g_bus_get_finish (res, &error);
+  g_assert_no_error (error);
+  g_assert_nonnull (c);
+
+  g_main_loop_quit (loop);
+
+  g_object_unref (c);
+}
+
+static void
+test_connection_cancel (void)
+{
+  GCancellable *cancellable, *cancellable2;
+
+  g_test_summary ("Test that cancelling one of two racing g_bus_get() calls does not cancel the other one");
+
+  session_bus_up ();
+
+  cancellable = g_cancellable_new ();
+  cancellable2 = g_cancellable_new ();
+
+  g_bus_get (G_BUS_TYPE_SESSION, cancellable, get_connection_cb_expect_cancel, NULL);
+  g_bus_get (G_BUS_TYPE_SESSION, cancellable2, get_connection_cb_expect_success, NULL);
+  g_cancellable_cancel (cancellable);
+  g_main_loop_run (loop);
+
+  g_object_unref (cancellable);
+  g_object_unref (cancellable2);
+
+  session_bus_down ();
+}
+
+/* ---------------------------------------------------------------------------------------------------- */
+
+static void
 test_connection_basic (void)
 {
   GDBusConnection *connection;
@@ -1294,6 +1429,7 @@ main (int   argc,
   g_test_add_func ("/gdbus/connection/signal-match-rules", test_connection_signal_match_rules);
   g_test_add_func ("/gdbus/connection/filter", test_connection_filter);
   g_test_add_func ("/gdbus/connection/serials", test_connection_serials);
+  g_test_add_func ("/gdbus/connection/cancel", test_connection_cancel);
   ret = g_test_run();
 
   g_main_loop_unref (loop);

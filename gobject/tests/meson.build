@@ -83,7 +83,11 @@ gobject_tests = {
   'binding' : {},
   'bindinggroup' : {},
   'properties' : {},
-  'reference' : {},
+  'properties-introspection' : {},
+  'reference' : {
+    # FIXME: https://gitlab.gnome.org/GNOME/glib/-/issues/3148
+    'can_fail' : host_system == 'gnu',
+  },
   'flags' : {},
   'value' : {},
   'type' : {},
