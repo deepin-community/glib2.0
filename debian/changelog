@@ -1,3 +1,11 @@
+glib2.0 (2.78.6-0deepin1) unstable; urgency=medium
+
+  * New upstream stable release
+  * Fix CVE-2024-34397: GDBus signal subscriptions for well-known names are
+    vulnerable to unicast spoofing
+
+ -- Tianyu Chen <sweetyfish@deepin.org>  Fri, 10 May 2024 16:17:18 +0800
+
 glib2.0 (2.78.3-2deepin2) unstable; urgency=medium
 
   * add fix-test-timeout.patch.

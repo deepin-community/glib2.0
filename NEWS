@@ -1,3 +1,51 @@
+Overview of changes in GLib 2.78.6, 2024-05-08
+==============================================
+
+* Fix a regression with IBus caused by the fix for CVE-2024-34397 (#3353,
+  work by Simon McVittie)
+
+* Bugs fixed:
+  - #3353 Fixing CVE-2024-34397 caused regressions for ibus (Simon McVittie)
+  - !4056 Backport !4053 “gdbusconnection: Allow name owners to have the syntax
+    of a well-known name” to glib-2-78
+
+Overview of changes in GLib 2.78.5, 2024-05-07
+==============================================
+
+* Fix CVE-2024-34397: GDBus signal subscriptions for well-known names are
+  vulnerable to unicast spoofing (#3268, work by Simon McVittie, reported by
+  Alicia Boya García)
+
+* Bugs fixed:
+  - #3168 gvfs-udisks2-volume-monitor SIGSEGV in g_content_type_guess_for_tree()
+    due to filename with bad encoding (Ondrej Holy)
+  - #3268 CVE-2024-34397: GDBus signal subscriptions for well-known names are
+    vulnerable to unicast spoofing (Simon McVittie)
+  - !3825 glib-2-78: ci: Drop FreeBSD 12 CI runner as it’s EOL
+  - !3960 gcontenttype: Make filename valid utf-8 string before processing
+  - !4040 Backport !4038 “gdbusconnection: Don't deliver signals if the sender
+    doesn't match” to glib-2-78
+  - !4043 CI: Ignore MSYS2 CI failures for this older stable-branch
+
+* Translation updates:
+  - English (United Kingdom) (Andi Chandler)
+  - Georgian (Ekaterine Papava)
+  - Portuguese (Brazil) (Juliano de Souza Camargo)
+
+
+Overview of changes in GLib 2.78.4, 2024-01-21
+==============================================
+
+* Bugs fixed:
+  - !3754 Backport !3751 “Fix generated RST anchors for methods, signals and
+    properties” to glib-2-78
+  - !3756 docs/reference: depend on a native gtk-doc
+  - !3759 Backport !3753 “gobject_gdb.py: Do not break bt on optimized build” to
+    glib-2-78
+  - !3766 Backport !3750 “gregex: clean up usage of _GRegex.jit_status” to
+    glib-2-78
+
+
 Overview of changes in GLib 2.78.3, 2023-12-06
 ==============================================
 
