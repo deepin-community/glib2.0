@@ -1,5 +1,3 @@
-gdbusconnection-Fix-test-signal-subscription-ordering.patch
-gdbusconnection-Allow-name-owners-to-have-the-syntax-of-a.patch
 01_gettext-desktopfiles.patch
 debian/02_gettext-desktopfiles-ubuntu.patch
 debian/03_disble_glib_compile_schemas_warning.patch
@@ -10,15 +8,9 @@ workarounds/closures-test-Skip-on-arm-unless-flaky-tests-are-allowed.patch
 workarounds/Disable-some-tests-on-slow-architectures-which-keep-faili.patch
 workarounds/Skip-test-which-performs-some-unreliable-floating-point-c.patch
 workarounds/Skip-unreliable-gdbus-threading-tests--by-default.patch
-workarounds/gmenumodel-test-Mark-as-flaky.patch
 workarounds/gvariant-test-Don-t-run-at-build-time-on-mips.patch
 workarounds/gdbus-server-auth-Normally-skip-flaky-DBUS_COOKIE_SHA1-te.patch
 workarounds/Skip-memory-monitor-dbus-test-if-not-specifically-request.patch
 workarounds/tests-Skip-debugcontroller-test.patch
 workarounds/testfilemonitor-Skip-if-we-are-avoiding-flaky-tests.patch
 debian/girepository-Describe-the-Debian-specific-cross-prefixed-.patch
-
-# https://gitlab.gnome.org/GNOME/glib/-/merge_requests/3697
-fix-gio-trash-handle-long-file-name-fail.patch
-fix-test-timeout.patch
-
