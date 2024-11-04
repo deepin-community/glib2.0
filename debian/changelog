@@ -1,10 +1,209 @@
-glib2.0 (2.80.1-1deepin1) unstable; urgency=medium
+glib2.0 (2.82.2-2) unstable; urgency=medium
 
-  * Revert 64-bit time_t changes.
-  * Reapply d/patches/fix-gio-trash-handle-long-file-name-fail.patch.
-  * Reapply d/patches/fix-test-timeout.patch.
+  * d/control: libgio-2.0-dev Breaks/Replaces older libglib2.0-dev-bin, too
+    (Closes: #1086036)
+  * d/control: List the tools included in libglib2.0-bin in its Description.
+    Very loosely based on discussion in #645491.
 
- -- Tianyu Chen <sweetyfish@deepin.org>  Thu, 09 May 2024 13:24:51 +0800
+ -- Simon McVittie <smcv@debian.org>  Sat, 26 Oct 2024 18:01:21 +0100
+
+glib2.0 (2.82.2-1) unstable; urgency=medium
+
+  * New upstream stable release
+  * d/p/gdatetime-test-Do-not-assume-PST8PDT-was-always-exactly-8.patch,
+    d/p/gdatetime-test-Try-to-make-PST8PDT-test-more-obviously-co.patch,
+    d/p/gdatetime-test-Fall-back-if-legacy-System-V-PST8PDT-is-no.patch:
+    Update to upstream glib-2-82 branch commit 2.82.2-4-g7e4fcb4fa8.
+    This addresses a FTBFS with tzdata 2024b (#1084190).
+    Thanks to Rebecca N. Palmer
+  * Build-depend on tzdata-legacy.
+    One test-case exercises the deprecated time zone name PST8PDT,
+    which is no longer available in tzdata. We'll get slightly better
+    coverage by having tzdata-legacy for as long as it's available.
+
+ -- Simon McVittie <smcv@debian.org>  Fri, 18 Oct 2024 19:51:15 +0100
+
+glib2.0 (2.82.1-1) unstable; urgency=medium
+
+  * New upstream stable release
+  * d/copyright: Update
+  * Move gdb integration hooks (/usr/share/gdb) back to libglib2.0-dev.
+    This is not essential functionality of libgio-2.0-dev, and having
+    it in the larger package gives us more flexibility about which of
+    the dependency packages contain supporting Python libraries.
+  * Move supporting code for gdb integration hooks into libgio-2.0-dev-bin.
+    This lets us byte-compile the Python modules with the primary
+    architecture's Python interpreter, and ensures that the Python
+    packaging infrastructure will automatically clean up their associated
+    bytecode files on uninstallation. (Closes: #987802)
+  * d/libgio-2.0-dev.install: Be more specific about what is installed.
+    If files with a different purpose are added to one of these
+    directories, we will not necessarily want to install them in the
+    same binary package.
+  * Replace temporary substvar ${local:SplitGiRepositoryVersion} with a
+    hard-coded version
+  * d/control, d/tests/control, d/*.install: Normalize formatting
+    (wrap-and-sort -ast)
+  * Release to unstable, now that NEW processing has been done and
+    architecture-properties is ready to migrate
+
+ -- Simon McVittie <smcv@debian.org>  Sat, 21 Sep 2024 14:10:44 +0100
+
+glib2.0 (2.82.0-2) experimental; urgency=medium
+
+  * Improve ability to bootstrap new architectures.
+    The versions of libglib2.0-dev and -dev-bin in Debian testing/unstable
+    and Ubuntu 24.04 depend on either python3 from the host architecture
+    or qemu-user from the build architecture (for the wrapped gi-*
+    tools), which is problematic for bootstrapping.
+    Separate out the rest, so that packages that participate in
+    bootstrapping can be compiled with only libgio-2.0-dev{,-bin},
+    possibly using the nogir build-profile to disable a dependency on
+    girepository-tools.
+    This converts libglib2.0-dev into a pure metapackage, with no
+    functionally significant content of its own, except for the gi-*
+    symlinks to the primary architecture's GObject-Introspection-related
+    tools.
+    libglib2.0-dev continues to be appropriate to use as a
+    build-dependency in most cases. For low-level packages that are
+    involved in architecture bootstrapping, consider depending directly
+    on libgio-2.0-dev{,-bin} instead, and guarding any dependencies on
+    girepository-tools with a suitable build-profile such as <!nogir>.
+    (Closes: #1078929)
+    - Move the headers and libraries from libglib2.0-dev to a new
+      libgio-2.0-dev package
+    - Also move Autoconf macros and gettext rules to libgio-2.0-dev
+    - Move libglib2.0-dev-bin, except gi-*, to libgio-2.0-dev-bin
+    - Move ${multiarch}-gi-* tools to girepository-tools
+  * d/tests: Assert that each -dev package that was split out from
+    libglib2.0-dev provides its intended interface:
+    - libgio-2.0-dev: ability to include headers and link to shared and
+      static libraries
+    - libgio-2.0-dev-bin: GLib, GObject and GIO development CLI tools
+    - girepository-tools: ${multiarch}-gi-* tools
+    - libglib2.0-dev: all of the above plus the non-multiarch gi-*
+  * d/control, d/rules: Drop the local:DEB-HOST-ARCH-OS substvar.
+    This isn't actually needed any more: girepository-tools is independent
+    of the non-architecture-prefixed symlinks, because the actual
+    executables are installed into the ${libdir}.
+  * d/rules: Don't require host and build endianness to match.
+    This was necessary with the approach we used before fixing #1066904,
+    but not any more.
+  * d/rules: Set gir_dir_prefix even if we are building with nogir.
+    It affects the contents of the gi-* tools.
+  * d/control, d/rules, d/emulated-g-ir-tool.in:
+    Use the new cross-exe-wrapper from src:architecture-properties to run
+    foreign-architecture executables, instead of using qemu directly.
+    This centralizes knowledge of how to run binaries of any given
+    architecture into the architecture-properties source package. It also
+    has the right special cases to avoid needing to install qemu in common
+    situations, for example when running i386 binaries on amd64.
+    (Closes: #1070773, #1071246)
+  * d/emulated-g-ir-tool.in: Simplify and rewrite from Python into shell
+  * d/source/lintian-overrides: Remove obsolete overrides for nogir
+  * d/copyright: Update
+  * Upload to experimental for NEW processing
+
+ -- Simon McVittie <smcv@debian.org>  Sat, 14 Sep 2024 22:18:00 +0100
+
+glib2.0 (2.82.0-1) unstable; urgency=medium
+
+  * New upstream release
+
+ -- Jeremy Bícha <jbicha@ubuntu.com>  Mon, 26 Aug 2024 07:05:28 -0400
+
+glib2.0 (2.81.2-1) unstable; urgency=medium
+
+  * New upstream release
+  * debian/libglib2.0-0t64.symbols: Add new symbols
+
+ -- Jeremy Bícha <jbicha@ubuntu.com>  Mon, 19 Aug 2024 20:10:12 -0400
+
+glib2.0 (2.81.1-3) unstable; urgency=medium
+
+  * Release to unstable
+
+ -- Jeremy Bícha <jbicha@ubuntu.com>  Sat, 03 Aug 2024 07:26:48 -0400
+
+glib2.0 (2.81.1-2) experimental; urgency=medium
+
+  [ Simon McVittie ]
+  * Reinstate man pages being controlled by nodoc
+
+ -- Jeremy Bícha <jbicha@ubuntu.com>  Fri, 02 Aug 2024 14:37:41 -0400
+
+glib2.0 (2.81.1-1) experimental; urgency=medium
+
+  * New upstream release
+  * debian/libglib2.0-0t64.symbols: Add new symbol
+  * Explicitly enable meson 'auto' features except for glib_debug
+  * Explicitly disable sysprof and libelf features for the udeb build
+  * Try removing gmenumodel-test-Mark-as-flaky.patch
+  * Bump Standards Version to 4.7.0
+
+ -- Jeremy Bícha <jbicha@ubuntu.com>  Fri, 02 Aug 2024 13:06:53 -0400
+
+glib2.0 (2.81.0-1) experimental; urgency=medium
+
+  [ Simon McVittie ]
+  * New upstream release
+  * d/copyright: Update & reorder stanzas for intended precedence
+  * d/libglib2.0-0t64.symbols: Add new ABI symbols
+  * d/libglib2.0-0t64.symbols: Reduce entropy
+  * d/rules: systemtap option is now a feature, not a boolean
+  * d/rules: Disable dtrace/systemtap for now: systemtap was apparently
+    never enabled before because it needed dtrace which was not enabled
+
+ -- Jeremy Bícha <jbicha@ubuntu.com>  Fri, 26 Jul 2024 13:43:57 -0400
+
+glib2.0 (2.80.4-1) unstable; urgency=medium
+
+  * New upstream release
+
+ -- Jeremy Bícha <jbicha@ubuntu.com>  Mon, 08 Jul 2024 11:51:07 -0400
+
+glib2.0 (2.80.3-1) unstable; urgency=medium
+
+  * New upstream release
+  * Drop patches applied in new release
+
+ -- Jeremy Bícha <jbicha@ubuntu.com>  Mon, 10 Jun 2024 11:48:46 -0400
+
+glib2.0 (2.80.2-2) unstable; urgency=medium
+
+  * d/patches: Update to upstream glib-2-80 branch commit
+    2.80.2-25-g197e2690e, excluding CI-only changes
+    - Fix memory errors in GActionGroupExporter and GMenuExporter
+      error-handling code paths since 2.80.1 (Closes: #1071690)
+    - Fix memory leaks in early-return code paths when trashing a local file
+    - Fix memory leaks in several tests
+    - Fix FTBFS on -ports architectures with unusual alignment, such as m68k
+    - Fix compiler warnings with gcc 14
+    - Improve dependencies between build targets
+  * d/control: Add missing libgir…-2.0-dev Depends on libgir…-2.0-0
+
+ -- Simon McVittie <smcv@debian.org>  Fri, 24 May 2024 12:21:09 +0100
+
+glib2.0 (2.80.2-1) unstable; urgency=medium
+
+  * New upstream stable release
+  * d/p/gdbusconnection-Fix-test-signal-subscription-ordering.patch,
+    d/p/gdbusconnection-Allow-name-owners-to-have-the-syntax-of-a.patch:
+    Drop patches that were included upstream
+  * d/p/gdbusmessage-Clean-the-cached-arg0-when-setting-the-messa.patch:
+    Add patch from upstream to fix a memory leak introduced in 2.80.0
+  * d/libglib2.0-doc.*: Adjust for move of GVariant specification into
+    glib-2.0/
+  * d/changelog: Remove some inaccurate text from the 2.80.0-10 entry.
+    Fixing CVE-2024-34397 in older branches required some backported
+    changes from 2.80.x, but in 2.80.x those changes were already present
+    upstream, so it was incorrect to list them as being new in 2.80.0-10.
+  * d/control: Fix cross-references from lib*-dev to gir1.2-*-dev
+    in package descriptions.
+    Now that we ship the .gir files in their own packages,
+    libgirepository1.0-dev is usually no longer necessary.
+
+ -- Simon McVittie <smcv@debian.org>  Fri, 10 May 2024 11:07:44 +0100
 
 glib2.0 (2.80.1-1) unstable; urgency=medium
 
@@ -31,10 +230,6 @@ glib2.0 (2.80.0-10) unstable; urgency=high
     - If local users send signals on the D-Bus system bus that spoof a
       trusted sender, do not deliver them to signal subscriptions for the
       trusted sender's well-known bus name (CVE-2024-34397)
-    - Fix a use-after-free when subscribing to signals with an arg0
-      match rule, originally from 2.79.0 and necessary to make the test
-      for CVE-2024-34397 pass reliably
-    - Add a local backport of g_set_str(), required by the above
     - Add proposed fix for a race condition that can cause a unit test
       to regress after the above
   * d/control: Add Breaks on gnome-shell (<< 44.9-2~).

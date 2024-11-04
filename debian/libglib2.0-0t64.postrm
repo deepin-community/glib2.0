@@ -5,7 +5,7 @@ set -e
 
 case "$1" in
     (purge)
-        # Don't remove giomodule.cache if libglib2.0-0 has been replaced
+        # Don't remove giomodule.cache if libglib2.0-0t64 has been replaced
         # by some other ABI variant of essentially the same library
         # (for example libglib2.0-0xyz), if that ever happens, to
         # avoid causing an equivalent of <https://bugs.debian.org/1065022>.
