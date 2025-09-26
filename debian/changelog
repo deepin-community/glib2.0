@@ -1,3 +1,10 @@
+glib2.0 (2.80.1-1deepin2) unstable; urgency=medium
+
+  * Replace d/p/fix-gio-trash-handle-long-file-name-fail.patch.
+  * Add d/p/keep-suffix-name-when-trashing.patch.
+
+ -- wangrong <wangrong@uniontech.com>  Fri, 26 Sep 2025 13:33:04 +0800
+
 glib2.0 (2.80.1-1deepin1) unstable; urgency=medium
 
   * Revert 64-bit time_t changes.
