@@ -20,4 +20,4 @@ debian/girepository-Describe-the-Debian-specific-cross-prefixed-.patch
 
 support-trashing-long-file-name.patch
 fix-test-timeout.patch
-
+keep-suffix-name-when-trashing.patch
