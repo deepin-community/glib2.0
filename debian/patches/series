@@ -21,3 +21,4 @@ debian/girepository-Describe-the-Debian-specific-cross-prefixed-.patch
 support-trashing-long-file-name.patch
 fix-test-timeout.patch
 keep-suffix-name-when-trashing.patch
+0001-CVE-2025-7039.patch
