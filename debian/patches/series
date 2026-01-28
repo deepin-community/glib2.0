@@ -22,3 +22,4 @@ support-trashing-long-file-name.patch
 fix-test-timeout.patch
 keep-suffix-name-when-trashing.patch
 0001-CVE-2025-7039.patch
+CVE-2025-13601.patch
