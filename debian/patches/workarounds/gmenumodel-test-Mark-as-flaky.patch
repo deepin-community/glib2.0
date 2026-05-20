@@ -11,10 +11,10 @@ Forwarded: no
  gio/tests/gmenumodel.c | 6 ++++++
  1 file changed, 6 insertions(+)
 
-diff --git a/gio/tests/gmenumodel.c b/gio/tests/gmenumodel.c
-index d75f36a..1c83987 100644
---- a/gio/tests/gmenumodel.c
-+++ b/gio/tests/gmenumodel.c
+Index: github-glib2.0-scout/gio/tests/gmenumodel.c
+===================================================================
+--- github-glib2.0-scout.orig/gio/tests/gmenumodel.c
++++ github-glib2.0-scout/gio/tests/gmenumodel.c
 @@ -1153,6 +1153,12 @@ test_dbus_peer_subscriptions (void)
  #else
    PeerConnection peer;

@@ -1,3 +1,28 @@
+glib2.0 (2.80.1-1deepin8) unstable; urgency=medium
+
+  * Refresh all patches with quilt to fix line number offsets
+
+ -- deepin-ci-robot <packages@deepin.org>  Wed, 20 May 2026 16:08:19 +0800
+
+glib2.0 (2.80.1-1deepin7) unstable; urgency=medium
+
+  * CVE-2026-1489: Add missing test file changes
+
+ -- deepin-ci-robot <packages@deepin.org>  Wed, 20 May 2026 14:32:55 +0800
+
+glib2.0 (2.80.1-1deepin6) unstable; urgency=medium
+
+  * Regenerate CVE-2025-14087.patch with correct line numbers
+
+ -- deepin-ci-robot <packages@deepin.org>  Wed, 20 May 2026 11:42:53 +0800
+
+glib2.0 (2.80.1-1deepin5) unstable; urgency=medium
+
+  * Fix CVE-2025-14087, CVE-2025-14512, CVE-2026-0988, CVE-2026-1484,
+    CVE-2026-1485, CVE-2026-1489
+
+ -- deepin-ci-robot <packages@deepin.org>  Wed, 20 May 2026 10:41:34 +0800
+
 glib2.0 (2.80.1-1deepin4) unstable; urgency=medium
 
   * Fix: CVE-2025-13601

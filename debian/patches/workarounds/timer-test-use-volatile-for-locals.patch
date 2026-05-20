@@ -14,10 +14,10 @@ Forwarded: yes
  glib/tests/timer.c | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
 
-diff --git a/glib/tests/timer.c b/glib/tests/timer.c
-index ae44dc8..5b1b43c 100644
---- a/glib/tests/timer.c
-+++ b/glib/tests/timer.c
+Index: github-glib2.0-scout/glib/tests/timer.c
+===================================================================
+--- github-glib2.0-scout.orig/glib/tests/timer.c
++++ github-glib2.0-scout/glib/tests/timer.c
 @@ -32,7 +32,7 @@ static void
  test_timer_basic (void)
  {

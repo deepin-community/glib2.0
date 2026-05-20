@@ -1,7 +1,7 @@
-Index: glib2.0-2.80.1/gio/glocalfile.c
+Index: github-glib2.0-scout/gio/glocalfile.c
 ===================================================================
---- glib2.0-2.80.1.orig/gio/glocalfile.c
-+++ glib2.0-2.80.1/gio/glocalfile.c
+--- github-glib2.0-scout.orig/gio/glocalfile.c
++++ github-glib2.0-scout/gio/glocalfile.c
 @@ -2253,6 +2253,7 @@ g_local_file_trash (GFile         *file,
                if (basename_len <= strlen (".trashinfo"))
                  break; /* fail with ENAMETOOLONG */

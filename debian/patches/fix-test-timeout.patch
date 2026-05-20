@@ -15,10 +15,10 @@ Signed-off-by: Xeonacid <h.dwwwwww@gmail.com>
  gobject/tests/performance/meson.build | 2 +-
  2 files changed, 3 insertions(+), 3 deletions(-)
 
-diff --git a/gobject/tests/meson.build b/gobject/tests/meson.build
-index 23f131b5c8..0333e48ebc 100644
---- a/gobject/tests/meson.build
-+++ b/gobject/tests/meson.build
+Index: github-glib2.0-scout/gobject/tests/meson.build
+===================================================================
+--- github-glib2.0-scout.orig/gobject/tests/meson.build
++++ github-glib2.0-scout/gobject/tests/meson.build
 @@ -78,8 +78,8 @@ gobject_tests = {
    'references' : {},
    'basic-signals' : {},
@@ -30,10 +30,10 @@ index 23f131b5c8..0333e48ebc 100644
    'binding' : {},
    'bindinggroup' : {},
    'properties' : {},
-diff --git a/gobject/tests/performance/meson.build b/gobject/tests/performance/meson.build
-index 2984a6c284..5aa720950c 100644
---- a/gobject/tests/performance/meson.build
-+++ b/gobject/tests/performance/meson.build
+Index: github-glib2.0-scout/gobject/tests/performance/meson.build
+===================================================================
+--- github-glib2.0-scout.orig/gobject/tests/performance/meson.build
++++ github-glib2.0-scout/gobject/tests/performance/meson.build
 @@ -1,6 +1,7 @@
  gobject_tests = {
    'performance' : {
@@ -42,6 +42,3 @@ index 2984a6c284..5aa720950c 100644
      # FIXME: https://gitlab.gnome.org/GNOME/glib/-/issues/3148
      'can_fail' : host_system == 'gnu',
    },
--- 
-GitLab
-

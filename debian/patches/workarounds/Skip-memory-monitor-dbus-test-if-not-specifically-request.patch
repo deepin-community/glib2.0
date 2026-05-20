@@ -10,10 +10,10 @@ Forwarded: no
  gio/tests/memory-monitor-dbus.py.in | 2 ++
  1 file changed, 2 insertions(+)
 
-diff --git a/gio/tests/memory-monitor-dbus.py.in b/gio/tests/memory-monitor-dbus.py.in
-index 7aae01e..1ee2a05 100755
---- a/gio/tests/memory-monitor-dbus.py.in
-+++ b/gio/tests/memory-monitor-dbus.py.in
+Index: github-glib2.0-scout/gio/tests/memory-monitor-dbus.py.in
+===================================================================
+--- github-glib2.0-scout.orig/gio/tests/memory-monitor-dbus.py.in
++++ github-glib2.0-scout/gio/tests/memory-monitor-dbus.py.in
 @@ -38,6 +38,8 @@ try:
              klass.start_system_bus()
              klass.dbus_con = klass.get_dbus(True)

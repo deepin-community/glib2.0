@@ -25,11 +25,11 @@ Forwarded: https://gitlab.gnome.org/GNOME/glib/-/merge_requests/4053
  gio/gdbusconnection.c | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
 
-diff --git a/gio/gdbusconnection.c b/gio/gdbusconnection.c
-index a543df9..9584447 100644
---- a/gio/gdbusconnection.c
-+++ b/gio/gdbusconnection.c
-@@ -2380,7 +2380,7 @@ name_watcher_deliver_name_owner_changed_unlocked (SignalData *name_watcher,
+Index: github-glib2.0-scout/gio/gdbusconnection.c
+===================================================================
+--- github-glib2.0-scout.orig/gio/gdbusconnection.c
++++ github-glib2.0-scout/gio/gdbusconnection.c
+@@ -2380,7 +2380,7 @@ name_watcher_deliver_name_owner_changed_
        /* Our caller already checked this */
        g_assert (g_strcmp0 (name_watcher->arg0, name) == 0);
  
@@ -38,7 +38,7 @@ index a543df9..9584447 100644
          name_watcher_set_name_owner_unlocked (name_watcher, new_owner);
        else
          g_warning ("Received NameOwnerChanged signal with invalid owner \"%s\" for \"%s\"",
-@@ -2432,7 +2432,7 @@ name_watcher_deliver_get_name_owner_reply_unlocked (SignalData *name_watcher,
+@@ -2432,7 +2432,7 @@ name_watcher_deliver_get_name_owner_repl
  
        g_variant_get (body, "(&s)", &new_owner);
  

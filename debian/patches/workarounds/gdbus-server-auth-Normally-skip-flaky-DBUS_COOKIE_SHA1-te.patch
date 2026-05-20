@@ -15,10 +15,10 @@ Forwarded: not-needed
  gio/tests/gdbus-server-auth.c | 7 +++++++
  1 file changed, 7 insertions(+)
 
-diff --git a/gio/tests/gdbus-server-auth.c b/gio/tests/gdbus-server-auth.c
-index 319a994..e7f112a 100644
---- a/gio/tests/gdbus-server-auth.c
-+++ b/gio/tests/gdbus-server-auth.c
+Index: github-glib2.0-scout/gio/tests/gdbus-server-auth.c
+===================================================================
+--- github-glib2.0-scout.orig/gio/tests/gdbus-server-auth.c
++++ github-glib2.0-scout/gio/tests/gdbus-server-auth.c
 @@ -327,6 +327,13 @@ do_test_server_auth (InteropFlags flags)
      }
  #endif

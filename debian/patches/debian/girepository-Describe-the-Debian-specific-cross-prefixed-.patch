@@ -9,11 +9,11 @@ Forwarded: not-needed, Debian-specific
  docs/reference/girepository/gi-inspect-typelib.rst    | 9 +++++++++
  3 files changed, 27 insertions(+)
 
-diff --git a/docs/reference/girepository/gi-compile-repository.rst b/docs/reference/girepository/gi-compile-repository.rst
-index a1af705..80b4aa9 100644
---- a/docs/reference/girepository/gi-compile-repository.rst
-+++ b/docs/reference/girepository/gi-compile-repository.rst
-@@ -45,6 +45,15 @@ gi-compile-repository converts one or more GIR files into one or more typelibs.
+Index: github-glib2.0-scout/docs/reference/girepository/gi-compile-repository.rst
+===================================================================
+--- github-glib2.0-scout.orig/docs/reference/girepository/gi-compile-repository.rst
++++ github-glib2.0-scout/docs/reference/girepository/gi-compile-repository.rst
+@@ -45,6 +45,15 @@ gi-compile-repository converts one or mo
  The output will be written to standard output unless the ``--output`` is
  specified.
  
@@ -29,11 +29,11 @@ index a1af705..80b4aa9 100644
  
  OPTIONS
  =======
-diff --git a/docs/reference/girepository/gi-decompile-typelib.rst b/docs/reference/girepository/gi-decompile-typelib.rst
-index fbec91b..2eff257 100644
---- a/docs/reference/girepository/gi-decompile-typelib.rst
-+++ b/docs/reference/girepository/gi-decompile-typelib.rst
-@@ -52,6 +52,15 @@ Normally, GIR XML should be generated from source code, headers and
+Index: github-glib2.0-scout/docs/reference/girepository/gi-decompile-typelib.rst
+===================================================================
+--- github-glib2.0-scout.orig/docs/reference/girepository/gi-decompile-typelib.rst
++++ github-glib2.0-scout/docs/reference/girepository/gi-decompile-typelib.rst
+@@ -52,6 +52,15 @@ Normally, GIR XML should be generated fr
  shared libraries using `g-ir-scanner(1) <man:g-ir-scanner(1)>`_
  instead of using this tool.
  
@@ -49,10 +49,10 @@ index fbec91b..2eff257 100644
  
  OPTIONS
  =======
-diff --git a/docs/reference/girepository/gi-inspect-typelib.rst b/docs/reference/girepository/gi-inspect-typelib.rst
-index 3c5b338..c50b784 100644
---- a/docs/reference/girepository/gi-inspect-typelib.rst
-+++ b/docs/reference/girepository/gi-inspect-typelib.rst
+Index: github-glib2.0-scout/docs/reference/girepository/gi-inspect-typelib.rst
+===================================================================
+--- github-glib2.0-scout.orig/docs/reference/girepository/gi-inspect-typelib.rst
++++ github-glib2.0-scout/docs/reference/girepository/gi-inspect-typelib.rst
 @@ -27,6 +27,15 @@ DESCRIPTION
  **gi-inspect-typelib** displays information about GObject-Introspection
  binary typelib files.

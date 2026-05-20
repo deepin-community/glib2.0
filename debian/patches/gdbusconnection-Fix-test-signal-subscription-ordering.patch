@@ -15,11 +15,11 @@ Origin: upstream, 2.81.0, commit:47866d252f5094b0a3466ac5fb52fc46ea44a228
  gio/tests/gdbus-connection.c | 29 +++++++++++++++++------------
  1 file changed, 17 insertions(+), 12 deletions(-)
 
-diff --git a/gio/tests/gdbus-connection.c b/gio/tests/gdbus-connection.c
-index 95d2b84..fc88167 100644
---- a/gio/tests/gdbus-connection.c
-+++ b/gio/tests/gdbus-connection.c
-@@ -536,7 +536,12 @@ test_connection_signal_handler (GDBusConnection  *connection,
+Index: github-glib2.0-scout/gio/tests/gdbus-connection.c
+===================================================================
+--- github-glib2.0-scout.orig/gio/tests/gdbus-connection.c
++++ github-glib2.0-scout/gio/tests/gdbus-connection.c
+@@ -536,7 +536,12 @@ test_connection_signal_handler (GDBusCon
             interface_name,
             signal_name);*/
  

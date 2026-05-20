@@ -17,10 +17,10 @@ Forwarded: no
  glib/tests/gwakeuptest.c | 17 +++++++++++++----
  1 file changed, 13 insertions(+), 4 deletions(-)
 
-diff --git a/glib/tests/gwakeuptest.c b/glib/tests/gwakeuptest.c
-index ab36c85..549b4e6 100644
---- a/glib/tests/gwakeuptest.c
-+++ b/glib/tests/gwakeuptest.c
+Index: github-glib2.0-scout/glib/tests/gwakeuptest.c
+===================================================================
+--- github-glib2.0-scout.orig/glib/tests/gwakeuptest.c
++++ github-glib2.0-scout/glib/tests/gwakeuptest.c
 @@ -76,6 +76,9 @@ struct context
  #define NUM_TOKENS       5
  #define TOKEN_TTL   100000

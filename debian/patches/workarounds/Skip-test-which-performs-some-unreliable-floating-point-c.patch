@@ -13,10 +13,10 @@ Forwarded: no
  glib/tests/timer.c | 6 ++++++
  1 file changed, 6 insertions(+)
 
-diff --git a/glib/tests/timer.c b/glib/tests/timer.c
-index 5b1b43c..c09f768 100644
---- a/glib/tests/timer.c
-+++ b/glib/tests/timer.c
+Index: github-glib2.0-scout/glib/tests/timer.c
+===================================================================
+--- github-glib2.0-scout.orig/glib/tests/timer.c
++++ github-glib2.0-scout/glib/tests/timer.c
 @@ -35,6 +35,12 @@ test_timer_basic (void)
    volatile gdouble elapsed;
    gulong micros;

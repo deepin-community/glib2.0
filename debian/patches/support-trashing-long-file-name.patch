@@ -14,10 +14,10 @@ https://specifications.freedesktop.org/trash-spec/trashspec-latest.html).
  gio/tests/trash.c | 75 ++++++++++++++++++++++++++++++++++++++++
  2 files changed, 145 insertions(+), 17 deletions(-)
 
-diff --git a/gio/glocalfile.c b/gio/glocalfile.c
-index bc33af6449..7b70c614c6 100644
---- a/gio/glocalfile.c
-+++ b/gio/glocalfile.c
+Index: github-glib2.0-scout/gio/glocalfile.c
+===================================================================
+--- github-glib2.0-scout.orig/gio/glocalfile.c
++++ github-glib2.0-scout/gio/glocalfile.c
 @@ -1997,6 +1997,8 @@ g_local_file_trash (GFile         *file,
    GVfsClass *class;
    GVfs *vfs;
@@ -43,14 +43,15 @@ index bc33af6449..7b70c614c6 100644
 -    infoname = g_strconcat (trashname, ".trashinfo", NULL);
 -    infofile = g_build_filename (infodir, infoname, NULL);
 -    g_free (infoname);
+-
+-    fd = g_open (infofile, O_CREAT | O_EXCL | O_CLOEXEC, 0666);
+-    errsv = errno;
+-  } while (fd == -1 && errsv == EEXIST);
 +  while (TRUE)
 +    {
 +      g_free (trashname);
 +      g_free (infofile);
- 
--    fd = g_open (infofile, O_CREAT | O_EXCL | O_CLOEXEC, 0666);
--    errsv = errno;
--  } while (fd == -1 && errsv == EEXIST);
++
 +      /* Make sure we can create a unique info file */
 +      trashname = get_unique_filename (basename, i++);
 +      infoname = g_strconcat (trashname, ".trashinfo", NULL);
@@ -136,10 +137,10 @@ index bc33af6449..7b70c614c6 100644
    /* Write the full content of the info file before trashing to make
     * sure someone doesn't read an empty file.  See #749314
     */
-diff --git a/gio/tests/trash.c b/gio/tests/trash.c
-index 63b4fee894..277f6ca705 100644
---- a/gio/tests/trash.c
-+++ b/gio/tests/trash.c
+Index: github-glib2.0-scout/gio/tests/trash.c
+===================================================================
+--- github-glib2.0-scout.orig/gio/tests/trash.c
++++ github-glib2.0-scout/gio/tests/trash.c
 @@ -26,6 +26,7 @@
  #include <glib/gstdio.h>
  #include <gio/gio.h>
@@ -236,6 +237,3 @@ index 63b4fee894..277f6ca705 100644
  
    return g_test_run ();
  }
--- 
-GitLab
-
