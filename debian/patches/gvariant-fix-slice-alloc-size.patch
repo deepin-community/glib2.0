@@ -1,0 +1,27 @@
+From 6522dca1a609cfa2084b979018635e49211919df Mon Sep 17 00:00:00 2001
+From: Simon McVittie <smcv@collabora.com>
+Date: Thu, 23 Apr 2026 15:07:52 +0100
+Subject: [PATCH] gvariant: Match allocation size of g_slice_new to
+ g_slice_free
+
+Commit ebbeb318 "gvariant: Tweak GVariantIter heap allocation size"
+changed the code path that allocates iterators on the heap to use
+the full size of the public iterator struct (including padding),
+but didn't change the matching g_slice_free() call. g_slice_free() is
+implemented as basically g_free_sized(), so the size passed to it
+should match the size that was allocated.
+
+Fixes: ebbeb318 "gvariant: Tweak GVariantIter heap allocation size"
+Signed-off-by: Simon McVittie <smcv@collabora.com>
+
+--- 6522dca1.orig/glib/gvariant.c
++++ 6522dca1/glib/gvariant.c
+@@ -3096,7 +3096,7 @@ g_variant_iter_free (GVariantIter *iter)
+   g_variant_unref (GVHI(iter)->value_ref);
+   GVHI(iter)->magic = 0;
+ 
+-  g_slice_free (struct heap_iter, GVHI(iter));
++  g_slice_free (GVariantIter, iter);
+ }
+ 
+ /**
