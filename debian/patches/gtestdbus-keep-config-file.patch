@@ -1,0 +1,83 @@
+From 39400ef06d734a5f92769ae02bad4f579216a146 Mon Sep 17 00:00:00 2001
+From: Philip Withnall <pwithnall@gnome.org>
+Date: Thu, 12 Mar 2026 12:32:32 +0000
+Subject: [PATCH] gtestdbus: Keep config file around until bus daemon exits
+
+Previously, the config file for the mock bus daemon was deleted as soon
+as the daemon had started up. That was fine, until when the daemon came
+to reload its configuration at runtime, which can happen if (for
+example) a new activatable service is added to the service directory
+specified in `g_test_dbus_add_service_dir()` at runtime. The daemon
+would error and not load the new activatable service config.
+
+Avoid that by keeping the config file around until the daemon exits, and
+then deleting it.
+
+Change the deletion code to ignore `ENOENT` (as the config file might
+have been cleaned up by the `G_TEST_OPTION_ISOLATE_DIRS` code, or
+similar, by then) and to print a warning rather than aborting (like the
+`kill()` code above).
+
+Signed-off-by: Philip Withnall <pwithnall@gnome.org>
+
+Index: glib2.0/gio/gtestdbus.c
+===================================================================
+--- glib2.0.orig/gio/gtestdbus.c
++++ glib2.0/gio/gtestdbus.c
+@@ -438,6 +438,7 @@ struct _GTestDBusPrivate
+   GPid bus_pid;
+   gchar *bus_address;
+   gboolean up;
++  char *config_path;  /* (type filename) */
+ };
+ 
+ enum
+@@ -622,7 +623,6 @@ start_daemon (GTestDBus *self)
+ {
+   const gchar *argv[] = {"dbus-daemon", "--print-address", "--config-file=foo", NULL};
+   gint pipe_fds[2] = {-1, -1};
+-  gchar *config_path;
+   gchar *config_arg;
+   gchar *print_address;
+   GIOChannel *channel;
+@@ -640,8 +640,8 @@ start_daemon (GTestDBus *self)
+   g_assert_no_error (error);
+ 
+   /* Write config file and set its path in argv */
+-  config_path = write_config_file (self);
+-  config_arg = g_strdup_printf ("--config-file=%s", config_path);
++  self->priv->config_path = write_config_file (self);
++  config_arg = g_strdup_printf ("--config-file=%s", self->priv->config_path);
+   argv[2] = config_arg;
+ 
+   /* Spawn dbus-daemon */
+@@ -693,12 +693,7 @@ start_daemon (GTestDBus *self)
+   g_assert_no_error (error);
+   g_io_channel_unref (channel);
+ 
+-  /* Don't use g_file_delete since it calls into gvfs */
+-  if (g_unlink (config_path) != 0)
+-    g_assert_not_reached ();
+-
+   g_free (print_address);
+-  g_free (config_path);
+   g_free (config_arg);
+ }
+ 
+@@ -717,6 +712,16 @@ stop_daemon (GTestDBus *self)
+ 
+   g_free (self->priv->bus_address);
+   self->priv->bus_address = NULL;
++
++  /* Don't use g_file_delete since it calls into gvfs */
++  if (g_unlink (self->priv->config_path) != 0 && errno != ENOENT)
++    {
++      int errsv = errno;
++      g_warning ("Can’t delete dbus-daemon config file ‘%s’: %s",
++                 self->priv->config_path, g_strerror (errsv));
++    }
++
++  g_clear_pointer (&self->priv->config_path, g_free);
+ }
+ 
+ /**

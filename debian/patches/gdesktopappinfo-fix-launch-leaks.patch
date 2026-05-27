@@ -1,0 +1,84 @@
+From 2bc433a8aa1dc9292d40fea30fc7699f35c6dd0f Mon Sep 17 00:00:00 2001
+From: correctmost <136447-correctmost@users.noreply.gitlab.gnome.org>
+Date: Fri, 6 Mar 2026 19:16:22 -0500
+Subject: [PATCH] gdesktopappinfo: Fix leaks in
+ g_desktop_app_info_launch_uris_with_spawn
+
+Previously, argument strings could leak due to an early loop-exit in
+g_strfreev because of a NULL array entry.
+
+Closes #3905
+
+Index: glib2.0/gio/gdesktopappinfo.c
+===================================================================
+--- glib2.0.orig/gio/gdesktopappinfo.c
++++ glib2.0/gio/gdesktopappinfo.c
+@@ -2971,7 +2971,7 @@ g_desktop_app_info_launch_uris_with_spaw
+           !g_file_test (argv[0], G_FILE_TEST_IS_EXECUTABLE) ||
+           g_file_test (argv[0], G_FILE_TEST_IS_DIR))
+         {
+-          char *program = g_steal_pointer (&argv[0]);
++          char *program = g_strdup (argv[0]);
+           char *program_path = NULL;
+ 
+           if (!g_path_is_absolute (program))
+@@ -2985,6 +2985,7 @@ g_desktop_app_info_launch_uris_with_spaw
+ 
+           if (program_path)
+             {
++              g_free (argv[0]);
+               argv[0] = g_steal_pointer (&program_path);
+             }
+           else
+Index: glib2.0/gio/tests/desktop-app-info.c
+===================================================================
+--- glib2.0.orig/gio/tests/desktop-app-info.c
++++ glib2.0/gio/tests/desktop-app-info.c
+@@ -1782,6 +1782,39 @@ test_launch_fail (void)
+ }
+ 
+ static void
++test_launch_fail_argument (void)
++{
++  GAppInfo *app_info;
++  GList *args = NULL;
++  GFile *file;
++  GFileIOStream *iostream;
++  GError *error = NULL;
++
++  app_info = g_app_info_create_from_commandline ("this-must-not-exist‼",
++                                                 "failing app with argument",
++                                                 G_APP_INFO_CREATE_NONE,
++                                                 &error);
++  g_assert_no_error (error);
++
++  file = g_file_new_tmp ("test_desktop_app_info_launch_fail_argument_XXXXXX",
++                         &iostream, NULL);
++  g_assert_nonnull (file);
++  g_assert_nonnull (iostream);
++  g_clear_object (&iostream);
++
++  args = g_list_prepend (args, file);
++  g_assert_false (g_app_info_launch (app_info, args, NULL, &error));
++  g_assert_error (error, G_SPAWN_ERROR, G_SPAWN_ERROR_NOENT);
++
++  g_clear_error (&error);
++  g_clear_object (&app_info);
++
++  g_file_delete (file, NULL, NULL);
++  g_clear_object (&file);
++  g_list_free (args);
++}
++
++static void
+ test_launch_fail_absolute_path (void)
+ {
+   GAppInfo *app_info;
+@@ -1902,6 +1935,7 @@ main (int   argc,
+   g_test_add_func ("/desktop-app-info/app-path", test_app_path);
+   g_test_add_func ("/desktop-app-info/app-path/wrong", test_app_path_wrong);
+   g_test_add_func ("/desktop-app-info/launch/fail", test_launch_fail);
++  g_test_add_func ("/desktop-app-info/launch/fail-argument", test_launch_fail_argument);
+   g_test_add_func ("/desktop-app-info/launch/fail-absolute-path", test_launch_fail_absolute_path);
+   g_test_add_func ("/desktop-app-info/launch/fail-startup-notify", test_launch_startup_notify_fail);
+   g_test_add_func ("/desktop-app-info/launch/fail-dbus", test_launch_fail_dbus);

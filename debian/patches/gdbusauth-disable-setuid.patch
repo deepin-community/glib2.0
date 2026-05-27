@@ -1,0 +1,115 @@
+From efac370744fe6f758bd8d98628964dd9843552c6 Mon Sep 17 00:00:00 2001
+From: Philip Withnall <pwithnall@gnome.org>
+Date: Tue, 27 Jan 2026 13:09:32 +0000
+Subject: [PATCH] gdbusauthmechanismsha1: Disable auth mechanism when setuid
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+When running setuid, ignore this auth mechanism and hence also the
+`$G_DBUS_COOKIE_SHA1_KEYRING_DIR` environment variable.
+
+This was considered as part of #2168 but determined at the time to not
+be a problem.
+
+It’s since been reported as a vulnerability. I don’t see how it can
+realistically be exploited in practice:
+ - This D-Bus auth mechanism is strongly discouraged and iirc it’s only
+   kept around for use on Windows
+ - The setuid binary would have to be running as a D-Bus server in a
+   peer-to-peer configuration, which is very rare
+ - Even rarer to run it as setuid root, rather than as a system service
+   via a service manager
+ - And the configuration would have to force this auth mechanism to be
+   used instead of any more appropriate mechanism
+
+That said, I don’t see any reason why we _shouldn’t_ ignore this
+environment variable when setuid. ¯\_(ツ)_/¯  The fallback for
+`$G_DBUS_COOKIE_SHA1_KEYRING_DIR` is to build the keyring path using
+`$HOME`, but that is equally as susceptible to attacker modification
+when running setuid, hence we disable the whole auth mechanism.
+
+This brings GIO inline with what libdbus does.
+
+Spotted by cavid.
+Thanks to the Sovereign Tech Resilience programme from the Sovereign
+Tech Agency.
+
+ID: #YWH-PGM9867-164
+Signed-off-by: Philip Withnall <pwithnall@gnome.org>
+
+Index: glib2.0/docs/reference/gio/overview.md
+===================================================================
+--- glib2.0.orig/docs/reference/gio/overview.md
++++ glib2.0/docs/reference/gio/overview.md
+@@ -332,7 +332,8 @@ environment.
+ - `G_DBUS_COOKIE_SHA1_KEYRING_DIR`.  Can be used to override the directory
+   used to store the keyring used in the `DBUS_COOKIE_SHA1` authentication
+   mechanism. Normally the directory used is `.dbus-keyrings` in the user's
+-  home directory.
++  home directory. This authentication mechanism (and hence the environment
++  variable) is disabled when running in a SUID program.
+ - `G_DBUS_COOKIE_SHA1_KEYRING_DIR_IGNORE_PERMISSION`.  If set, the
+   permissions of the directory used to store the keyring used in the
+   `DBUS_COOKIE_SHA1` authentication mechanism won't be checked. Normally the
+Index: glib2.0/gio/gdbusauthmechanismsha1.c
+===================================================================
+--- glib2.0.orig/gio/gdbusauthmechanismsha1.c
++++ glib2.0/gio/gdbusauthmechanismsha1.c
+@@ -275,13 +275,26 @@ ensure_keyring_directory (GError **error
+ {
+   gchar *path;
+   const gchar *e;
+-  gboolean is_setuid;
+ #ifdef G_OS_UNIX
+   struct stat statbuf;
+ #endif
+ 
+   g_return_val_if_fail (error == NULL || *error == NULL, NULL);
+ 
++  /* If running as setuid, we can’t trust the environment (as it’s provided by
++   * a user running at a lower privilege level), so we can’t check
++   * $G_DBUS_COOKIE_SHA1_KEYRING_DIR *and* we can’t build it using $HOME.
++   * Just bail out in that case. */
++  if (GLIB_PRIVATE_CALL (g_check_setuid) ())
++    {
++      g_set_error_literal (error,
++                           G_IO_ERROR,
++                           G_IO_ERROR_PERMISSION_DENIED,
++                           _("Error accessing D-Bus keyring: keyring-based "
++                             "authentication is not supported when running as setuid"));
++      return NULL;
++    }
++
+   e = g_getenv ("G_DBUS_COOKIE_SHA1_KEYRING_DIR");
+   if (e != NULL)
+     {
+@@ -344,9 +357,7 @@ ensure_keyring_directory (GError **error
+ #endif  /* if !G_OS_UNIX */
+ 
+   /* Only create the directory if not running as setuid */
+-  is_setuid = GLIB_PRIVATE_CALL (g_check_setuid) ();
+-  if (!is_setuid &&
+-      g_mkdir_with_parents (path, 0700) != 0)
++  if (g_mkdir_with_parents (path, 0700) != 0)
+     {
+       int errsv = errno;
+       g_set_error (error,
+@@ -358,17 +369,6 @@ ensure_keyring_directory (GError **error
+       g_clear_pointer (&path, g_free);
+       return NULL;
+     }
+-  else if (is_setuid)
+-    {
+-      g_set_error (error,
+-                   G_IO_ERROR,
+-                   G_IO_ERROR_PERMISSION_DENIED,
+-                   _("Error creating directory “%s”: %s"),
+-                   path,
+-                   _("Operation not supported"));
+-      g_clear_pointer (&path, g_free);
+-      return NULL;
+-    }
+ 
+   return g_steal_pointer (&path);
+ }

@@ -1,0 +1,23 @@
+From 6b458c03f9c7b95b0e39f1b70413e6c818ecc72a Mon Sep 17 00:00:00 2001
+From: correctmost <136447-correctmost@users.noreply.gitlab.gnome.org>
+Date: Fri, 10 Apr 2026 06:36:47 -0400
+Subject: [PATCH] gmessages: Add missing stdlib.h include for abort()
+
+Commit 279fa0a38 added abort() calls, but the requisite stdlib.h
+include was forgotten. This could cause build failures and
+-Wimplicit-function-declaration warnings in downstream code.
+
+Fixes: 279fa0a38
+
+Index: glib2.0/glib/gmessages.h
+===================================================================
+--- glib2.0.orig/glib/gmessages.h
++++ glib2.0/glib/gmessages.h
+@@ -32,6 +32,7 @@
+ #endif
+ 
+ #include <stdarg.h>
++#include <stdlib.h>
+ #include <glib/gatomic.h>
+ #include <glib/gtypes.h>
+ #include <glib/gmacros.h>

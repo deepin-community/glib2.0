@@ -1,0 +1,22 @@
+From b31324ecb3ef1d20247e95630728f21b2b5361f0 Mon Sep 17 00:00:00 2001
+From: correctmost <136447-correctmost@users.noreply.gitlab.gnome.org>
+Date: Sat, 7 Mar 2026 23:31:57 -0500
+Subject: [PATCH] gio-tool-launch: Fix a filename leak
+
+A g_canonicalize_filename call was introduced in c924de69f0, but
+a corresponding g_free call was missed.
+
+Fixes: c924de69f0
+
+Index: glib2.0/gio/gio-tool-launch.c
+===================================================================
+--- glib2.0.orig/gio/gio-tool-launch.c
++++ glib2.0/gio/gio-tool-launch.c
+@@ -128,6 +128,7 @@ handle_launch (int argc, char *argv[], g
+       g_clear_object (&app);
+     }
+   g_key_file_free (keyfile);
++  g_free (desktop_file);
+ #endif
+   return retval;
+ }

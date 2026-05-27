@@ -1,0 +1,92 @@
+From 0ac0a2a417e75cfe9cdba6ce393b890d793b4b95 Mon Sep 17 00:00:00 2001
+From: Philip Withnall <pwithnall@gnome.org>
+Date: Sun, 29 Mar 2026 19:46:33 +0100
+Subject: [PATCH] gmarkup: Fix potential one-byte overread in
+ g_markup_escape_text()
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+If the input string (which might be malicious, as the program is
+choosing to escape it) ends with 0xc2 (a UTF-8 prefix byte), the code
+wasn’t previously checking the input string length was long enough to
+contain the following byte before reading it.
+
+Fix that by switching from `g_utf8_get_char()` to
+`g_utf8_get_char_validated()`.
+
+Spotted by linhlhq as #YWH-PGM9867-187. Thank you for the suggested fix
+and unit test, which have been adapted into this commit.
+
+Also spotted by oss-fuzz after we added a fuzz test for this function.
+
+Signed-off-by: Philip Withnall <pwithnall@gnome.org>
+
+Fixes: #3916
+oss-fuzz#498475244
+
+Index: glib2.0/glib/gmarkup.c
+===================================================================
+--- glib2.0.orig/glib/gmarkup.c
++++ glib2.0/glib/gmarkup.c
+@@ -2200,7 +2200,7 @@ append_escaped_text (GString     *str,
+           /* The utf-8 control characters to escape begins with 0xc2 byte */
+           else if (c == 0xc2)
+             {
+-              gunichar u = g_utf8_get_char (pending);
++              gunichar u = g_utf8_get_char_validated (pending, end - pending);
+ 
+               if ((0x7f < u && u <= 0x84) ||
+                   (0x86 <= u && u <= 0x9f))
+@@ -2216,7 +2216,11 @@ append_escaped_text (GString     *str,
+                   p++;
+                 }
+               else
+-                pending++;
++                {
++                  /* Not the UTF-8 control characters we’re looking for, or an
++                   * invalid or partial encoding. Pass it through. */
++                  pending++;
++                }
+             }
+           else
+             pending++;
+Index: glib2.0/glib/tests/markup-escape.c
+===================================================================
+--- glib2.0.orig/glib/tests/markup-escape.c
++++ glib2.0/glib/tests/markup-escape.c
+@@ -37,6 +37,7 @@ static EscapeTest escape_tests[] =
+   { "N\xc2\x80N", "N&#x80;N" },
+   { "N\xc2\x79N", "N\xc2\x79N" },
+   { "N\xc2\x9fN", "N&#x9f;N" },
++  { "\xc2", "\xc2" },
+ 
+   /* As per g_markup_escape_text()'s documentation, whitespace is not escaped: */
+   { "\t", "\t" },
+@@ -46,13 +47,24 @@ static void
+ escape_test (gconstpointer d)
+ {
+   const EscapeTest *test = d;
+-  gchar *result;
++  char *non_nul_terminated_original = NULL;
++  size_t non_nul_terminated_original_len = 0;
++  char *result = NULL, *result2 = NULL;
+ 
++  /* Try once nul-terminated */
+   result = g_markup_escape_text (test->original, -1);
+-
+   g_assert_cmpstr (result, ==, test->expected);
+ 
++  /* And try again with a newly allocated original without a nul-terminator,
++   * and using a fixed length. This can help catch buffer overflows. */
++  non_nul_terminated_original_len = strlen (test->original);
++  non_nul_terminated_original = (non_nul_terminated_original_len > 0) ? g_memdup2 (test->original, non_nul_terminated_original_len) : g_strdup (test->original);
++  result2 = g_markup_escape_text (non_nul_terminated_original, non_nul_terminated_original_len);
++  g_assert_cmpstr (result2, ==, test->expected);
++
+   g_free (result);
++  g_free (result2);
++  g_free (non_nul_terminated_original);
+ }
+ 
+ typedef struct _UnicharTest UnicharTest;

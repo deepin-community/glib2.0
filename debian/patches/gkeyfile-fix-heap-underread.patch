@@ -1,0 +1,96 @@
+From 5f6d86b50bebf5458ab1becf4de2c5e5f066122b Mon Sep 17 00:00:00 2001
+From: Philip Withnall <pwithnall@gnome.org>
+Date: Sat, 11 Apr 2026 14:42:57 +0100
+Subject: [PATCH] gkeyfile: Fix a one-byte heap under-read with
+ g_key_file_get_locale_string_list()
+
+If this method was called on a key file key which has an empty value,
+`len == 0` and this leads to a one-byte under-read off the start of the
+key file buffer.
+
+Spotted by linhlhq as #YWH-PGM9867-200. The suggested fix is theirs, and
+the unit test is adapted from their report. I added the fuzzing test.
+
+Signed-off-by: Philip Withnall <pwithnall@gnome.org>
+
+Fixes: #3930
+
+Index: glib2.0/fuzzing/fuzz_key.c
+===================================================================
+--- glib2.0.orig/fuzzing/fuzz_key.c
++++ glib2.0/fuzzing/fuzz_key.c
+@@ -26,11 +26,20 @@ test_parse (const gchar   *data,
+             GKeyFileFlags  flags)
+ {
+   GKeyFile *key = NULL;
++  char *comment = NULL;
++  char **list = NULL;
+ 
+   key = g_key_file_new ();
+   g_key_file_load_from_data (key, (const gchar*) data, size, G_KEY_FILE_NONE,
+                              NULL);
+ 
++  /* Also try some additional parsing and see if it crashes */
++  comment = g_key_file_get_comment (key, "group", "key", NULL);
++  g_free (comment);
++
++  list = g_key_file_get_locale_string_list (key, "group", "key", "de", NULL, NULL);
++  g_strfreev (list);
++
+   g_key_file_free (key);
+ }
+ 
+Index: glib2.0/glib/gkeyfile.c
+===================================================================
+--- glib2.0.orig/glib/gkeyfile.c
++++ glib2.0/glib/gkeyfile.c
+@@ -2513,7 +2513,7 @@ g_key_file_get_locale_string_list (GKeyF
+     }
+ 
+   len = strlen (value);
+-  if (value[len - 1] == key_file->list_separator)
++  if (len > 0 && value[len - 1] == key_file->list_separator)
+     value[len - 1] = '\0';
+ 
+   list_separator[0] = key_file->list_separator;
+Index: glib2.0/glib/tests/keyfile.c
+===================================================================
+--- glib2.0.orig/glib/tests/keyfile.c
++++ glib2.0/glib/tests/keyfile.c
+@@ -856,6 +856,28 @@ test_locale_string_multiple_loads (void)
+ }
+ 
+ static void
++test_locale_string_empty (void)
++{
++  GKeyFile *keyfile = NULL;
++  GError *local_error = NULL;
++  const char *data =
++    "[valid]\n"
++    "key1=\n";
++
++  g_test_summary ("Check that loading an empty translatable string works");
++  g_test_bug ("https://gitlab.gnome.org/GNOME/glib/-/issues/3930");
++
++  keyfile = g_key_file_new ();
++
++  g_key_file_load_from_data (keyfile, data, -1, G_KEY_FILE_NONE, &local_error);
++  g_assert_no_error (local_error);
++
++  check_locale_string_list_value (keyfile, "valid", "key1", NULL, NULL);
++
++  g_key_file_free (keyfile);
++}
++
++static void
+ test_lists (void)
+ {
+   GKeyFile *keyfile;
+@@ -1944,6 +1966,7 @@ main (int argc, char *argv[])
+   g_test_add_func ("/keyfile/number", test_number);
+   g_test_add_func ("/keyfile/locale-string", test_locale_string);
+   g_test_add_func ("/keyfile/locale-string/multiple-loads", test_locale_string_multiple_loads);
++  g_test_add_func ("/keyfile/locale-string/empty", test_locale_string_empty);
+   g_test_add_func ("/keyfile/lists", test_lists);
+   g_test_add_func ("/keyfile/lists-set-get", test_lists_set_get);
+   g_test_add_func ("/keyfile/group-remove", test_group_remove);

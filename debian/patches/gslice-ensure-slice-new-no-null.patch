@@ -1,0 +1,146 @@
+From 16cfa6979459fa59b285193c10f3ff878ee2ce85 Mon Sep 17 00:00:00 2001
+From: Philip Withnall <pwithnall@gnome.org>
+Date: Sun, 1 Mar 2026 14:06:46 +0000
+Subject: [PATCH] =?UTF-8?q?gslice:=20Ensure=20g=5Fslice=5Fnew()=20can?=
+ =?UTF-8?q?=E2=80=99t=20return=20`NULL`=20if=20passed=20an=20empty=20struc?=
+ =?UTF-8?q?t?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+The API is defined as having a non-nullable return value, and we cannot
+change that without introducing an API break. Not that we would want to,
+because that would instantly introduce the need for `NULL` checks by
+every caller (particularly in languages where nullability is implemented
+more strongly in the type system than C).
+
+Instead, make sure that the minimum allocation size is 1, and add a unit
+test.
+
+Same for `g_slice_dup()` as it behaves similarly.
+
+This is quite the corner case, because it’s compiler dependent whether
+empty structs are actually allowed in C. gcc allows them, MSVC does not.
+
+Signed-off-by: Philip Withnall <pwithnall@gnome.org>
+
+Fixes: #3688
+
+Index: glib2.0/glib/gslice.c
+===================================================================
+--- glib2.0.orig/glib/gslice.c
++++ glib2.0/glib/gslice.c
+@@ -68,8 +68,8 @@ g_slice_get_config_state (GSliceConfig c
+  * returned pointer to a pointer of the given type, avoiding a type
+  * cast in the source code.
+  *
+- * This can never return %NULL as the minimum allocation size from
+- * `sizeof (@type)` is 1 byte.
++ * This can never return %NULL. If the size of the type is 0, then 1 byte will
++ * still be allocated.
+  *
+  * Since GLib 2.76 this always uses the system malloc() implementation
+  * internally.
+@@ -91,8 +91,8 @@ g_slice_get_config_state (GSliceConfig c
+  * and casts the returned pointer to a pointer of the given type,
+  * avoiding a type cast in the source code.
+  *
+- * This can never return %NULL as the minimum allocation size from
+- * `sizeof (@type)` is 1 byte.
++ * This can never return %NULL. If the size of the type is 0, then 1 byte will
++ * still be allocated.
+  *
+  * Since GLib 2.76 this always uses the system malloc() implementation
+  * internally.
+Index: glib2.0/glib/gslice.h
+===================================================================
+--- glib2.0.orig/glib/gslice.h
++++ glib2.0/glib/gslice.h
+@@ -45,21 +45,21 @@ GLIB_AVAILABLE_IN_ALL
+ void     g_slice_free_chain_with_offset (gsize         block_size,
+ 					 gpointer      mem_chain,
+ 					 gsize         next_offset);
+-#define  g_slice_new(type)      ((type*) g_slice_alloc (sizeof (type)))
++#define  g_slice_new(type)      ((type*) g_slice_alloc (MAX (sizeof (type), 1)))
+ 
+ /* Allow the compiler to inline memset(). Since the size is a constant, this
+  * can significantly improve performance. */
+ #if defined (__GNUC__) && (__GNUC__ >= 2) && defined (__OPTIMIZE__)
+ #  define g_slice_new0(type)                                    \
+   (type *) (G_GNUC_EXTENSION ({                                 \
+-    gsize __s = sizeof (type);                                  \
++    gsize __s = MAX (sizeof (type), 1);                         \
+     gpointer __p;                                               \
+     __p = g_slice_alloc (__s);                                  \
+     memset (__p, 0, __s);                                       \
+     __p;                                                        \
+   }))
+ #else
+-#  define g_slice_new0(type)    ((type*) g_slice_alloc0 (sizeof (type)))
++#  define g_slice_new0(type)    ((type*) g_slice_alloc0 (MAX (sizeof (type), 1)))
+ #endif
+ 
+ /* MemoryBlockType *
+@@ -76,7 +76,7 @@ void     g_slice_free_chain_with_offset
+ 
+ /* we go through extra hoops to ensure type safety */
+ #define g_slice_dup(type, mem)                                  \
+-  (1 ? (type*) g_slice_copy (sizeof (type), (mem))              \
++  (1 ? (type*) g_slice_copy (MAX (sizeof (type), 1), (mem))     \
+      : ((void) ((type*) 0 == (mem)), (type*) 0))
+ #define g_slice_free(type, mem)                                 \
+ G_STMT_START {                                                  \
+Index: glib2.0/glib/tests/slice.c
+===================================================================
+--- glib2.0.orig/glib/tests/slice.c
++++ glib2.0/glib/tests/slice.c
+@@ -90,6 +90,41 @@ test_allocate (void)
+     g_thread_join (threads[i]);
+ }
+ 
++static void
++test_new_empty (void)
++{
++#if !defined(_MSC_VER) || defined(__clang__)
++  typedef struct {
++    /* empty */
++  } EmptyStruct;
++  EmptyStruct *p1, *p2, *p3;
++
++  g_test_summary ("Test that g_slice_new() never returns NULL, even with a zero-size allocation");
++  g_test_bug ("https://gitlab.gnome.org/GNOME/glib/-/issues/3688");
++
++  if (sizeof (EmptyStruct) > 0)
++    {
++      g_test_skip ("Compiler doesn’t support empty structs");
++      return;
++    }
++
++  p1 = g_slice_new (EmptyStruct);
++  g_assert_nonnull (p1);
++
++  p2 = g_slice_new0 (EmptyStruct);
++  g_assert_nonnull (p2);
++
++  p3 = g_slice_dup (EmptyStruct, p1);
++  g_assert_nonnull (p3);
++
++  g_free (p3);
++  g_free (p2);
++  g_free (p1);
++#else
++  g_test_skip ("MSVC requires that structs are non-empty");
++#endif
++}
++
+ int
+ main (int argc, char **argv)
+ {
+@@ -98,6 +133,7 @@ main (int argc, char **argv)
+   g_test_add_func ("/slice/copy", test_slice_copy);
+   g_test_add_func ("/slice/chain", test_chain);
+   g_test_add_func ("/slice/allocate", test_allocate);
++  g_test_add_func ("/slice/new-empty", test_new_empty);
+ 
+   return g_test_run ();
+ }

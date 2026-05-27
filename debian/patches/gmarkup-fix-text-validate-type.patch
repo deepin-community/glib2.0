@@ -1,0 +1,23 @@
+From 7419cdc5515b3a0b590e62b35ee6dbe386ccd606 Mon Sep 17 00:00:00 2001
+From: Michael Catanzaro <mcatanzaro@gnome.org>
+Date: Tue, 24 Mar 2026 08:37:54 -0500
+Subject: [PATCH] gmarkup: fix type of length parameter of text_validate()
+
+A bug hunter submitted a bogus vulnerability report (#YWH-PGM9867-188)
+regarding this issue. the code passes the size of a GString, gsize, to
+an int, which is surely a bug. Fortunately, g_utf8_validate_len() also
+accepts a gsize, so there's only one spot that needs to be changed.
+
+Index: glib2.0/glib/gmarkup.c
+===================================================================
+--- glib2.0.orig/glib/gmarkup.c
++++ glib2.0/glib/gmarkup.c
+@@ -482,7 +482,7 @@ name_validate (GMarkupParseContext  *con
+ static gboolean
+ text_validate (GMarkupParseContext  *context,
+                const gchar          *p,
+-               gint                  len,
++               gsize                 len,
+                GError              **error)
+ {
+   if (!g_utf8_validate_len (p, len, NULL))

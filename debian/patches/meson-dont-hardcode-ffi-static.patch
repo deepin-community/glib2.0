@@ -1,0 +1,38 @@
+From 279ed5e22fb6597b94eeca8b1cf2a16f98d03474 Mon Sep 17 00:00:00 2001
+From: Luca Bacci <luca.bacci982@gmail.com>
+Date: Thu, 7 May 2026 14:59:17 +0200
+Subject: [PATCH] Meson: Don't hardcode FFI_STATIC_BUILD /
+ G_INTL_STATIC_COMPILATION
+
+The defines must come from subprojects or .pc files. We might
+build GLib statically and libffi / proxy-libintl as shared
+libraries.
+
+See https://gitlab.freedesktop.org/dbus/dbus/-/work_items/549
+
+Index: glib2.0/glib/glibconfig.h.in
+===================================================================
+--- glib2.0.orig/glib/glibconfig.h.in
++++ glib2.0/glib/glibconfig.h.in
+@@ -17,8 +17,6 @@
+ #mesondefine GIO_STATIC_COMPILATION
+ #mesondefine GMODULE_STATIC_COMPILATION
+ #mesondefine GI_STATIC_COMPILATION
+-#mesondefine G_INTL_STATIC_COMPILATION
+-#mesondefine FFI_STATIC_BUILD
+ 
+ /* Specifies that GLib's g_print*() functions wrap the
+  * system printf functions.  This is useful to know, for example,
+Index: glib2.0/meson.build
+===================================================================
+--- glib2.0.orig/meson.build
++++ glib2.0/meson.build
+@@ -317,8 +317,6 @@ if glib_build_static_only
+   glibconfig_conf.set('GIO_STATIC_COMPILATION', '1')
+   glibconfig_conf.set('GMODULE_STATIC_COMPILATION', '1')
+   glibconfig_conf.set('GI_STATIC_COMPILATION', '1')
+-  glibconfig_conf.set('G_INTL_STATIC_COMPILATION', '1')
+-  glibconfig_conf.set('FFI_STATIC_BUILD', '1')
+ endif
+ 
+ # Cygwin glib port maintainers made it clear

@@ -1,0 +1,69 @@
+From cdcad0f92cdd6ecc36e4b6ad290b50c13e3fe994 Mon Sep 17 00:00:00 2001
+From: Philip Withnall <pwithnall@gnome.org>
+Date: Sat, 2 May 2026 13:45:41 +0100
+Subject: [PATCH] gnulib: Fix unused flags variable warning
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+The following error has just popped up in mingw32 CI, which presumably
+means the compiler has just been upgraded under our feet again:
+```
+../glib/gnulib/vasnprintf.c: In function '_g_gnulib_vasnprintf':
+../glib/gnulib/vasnprintf.c:2429:21: error: variable 'flags' set but not used [-Werror=unused-but-set-variable=]
+ 2429 |                 int flags = dp->flags;
+      |                     ^~~~~
+cc1.exe: all warnings being treated as errors
+```
+
+This highlighted a bug in the version of gnulib we’re using, where the
+`flags` variable was assigned but never used.
+
+In lieu of updating our gnulib copylib version (which I don’t have the
+energy to do right now; see #2603), copy across the fix for this issue
+from upstream.
+
+It’s upstream commit 5527d5c548702b89d217bbe58036996066a709b6.
+
+Signed-off-by: Philip Withnall <pwithnall@gnome.org>
+
+Index: glib2.0/glib/gnulib/vasnprintf.c
+===================================================================
+--- glib2.0.orig/glib/gnulib/vasnprintf.c
++++ glib2.0/glib/gnulib/vasnprintf.c
+@@ -2580,7 +2580,7 @@ VASNPRINTF (DCHAR_T *resultbuf, size_t *
+                       characters = 0;
+                     }
+ 
+-                  if (characters < width && !(dp->flags & FLAG_LEFT))
++                  if (characters < width && !(flags & FLAG_LEFT))
+                     {
+                       size_t n = width - characters;
+                       ENSURE_ALLOCATION (xsum (length, n));
+@@ -2641,7 +2641,7 @@ VASNPRINTF (DCHAR_T *resultbuf, size_t *
+                         }
+                     }
+ 
+-                  if (characters < width && (dp->flags & FLAG_LEFT))
++                  if (characters < width && (flags & FLAG_LEFT))
+                     {
+                       size_t n = width - characters;
+                       ENSURE_ALLOCATION (xsum (length, n));
+@@ -2832,7 +2832,7 @@ VASNPRINTF (DCHAR_T *resultbuf, size_t *
+                     /* w doesn't matter.  */
+                     w = 0;
+ 
+-                  if (w < width && !(dp->flags & FLAG_LEFT))
++                  if (w < width && !(flags & FLAG_LEFT))
+                     {
+                       size_t n = width - w;
+                       ENSURE_ALLOCATION (xsum (length, n));
+@@ -2915,7 +2915,7 @@ VASNPRINTF (DCHAR_T *resultbuf, size_t *
+                   length += tmpdst_len;
+ #  endif
+ 
+-                  if (w < width && (dp->flags & FLAG_LEFT))
++                  if (w < width && (flags & FLAG_LEFT))
+                     {
+                       size_t n = width - w;
+                       ENSURE_ALLOCATION (xsum (length, n));

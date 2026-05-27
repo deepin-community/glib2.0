@@ -1,3 +1,42 @@
+glib2.0 (2.80.1-1deepin5) unstable; urgency=medium
+
+  * Backport upstream security and bugfix patches:
+  * b31324ec: gio-tool-launch: Fix a filename leak
+  * 2bc433a8: gdesktopappinfo: Fix leaks in
+    g_desktop_app_info_launch_uris_with_spawn
+  * 16cfa697: gslice: Ensure g_slice_new() can't return NULL
+  * 9061ab25: gslice: Factor out a size helper macro to stop using MAX
+    in public header
+  * 39400ef0: gtestdbus: Keep config file around until bus daemon exits
+  * a6cc8e9e: gdbusmessage: Add missing guidance about
+    g_dbus_message_new_from_blob()
+  * 7419cdc5: gmarkup: fix type of length parameter of text_validate()
+  * 8338414f: gvariant: Fix off-by-one error in offset comparison
+    (security)
+  * ededb77e: gdatetime: Add missing range validation to
+    g_date_time_add_full()
+  * 0ac0a2a4: gmarkup: Fix potential one-byte overread in
+    g_markup_escape_text()
+  * 49e06757: gregex: Fix case changing substitutions with G_REGEX_RAW
+    (security)
+  * 9e3965ae: gregex: Fix use of wrong option flags for G_REGEX_RAW
+  * c670e0b9: gregex: Handle string lengths as unsigned internally
+    (security)
+  * 6b458c03: gmessages: Add missing stdlib.h include for abort()
+  * ff844189: registrysettingsbackend: Chain up vfuncs
+  * 5f6d86b5: gkeyfile: Fix one-byte heap under-read (security)
+  * 998ada22: gdbusmessage: Convert precondition into GError
+  * 8b72ad09: gdbusauthmechanismsha1: Validate cookie context (security)
+  * 948c5984: gdbusauthmechanismsha1: Improve validation of cookie ID
+  * 9f557746: giochannel: Fix memcmp() off the end of the buffer
+    (security)
+  * 578a4884: gdbusmessage: Fix types of integer arithmetic (security)
+  * cdcad0f9: gnulib: Fix unused flags variable warning
+  * efac3707: gdbusauthmechanismsha1: Disable auth mechanism when setuid
+  * 279ed5e2: Meson: Don't hardcode FFI_STATIC_BUILD
+
+ -- jiabowen <jiabowen@uniontech.com>  Wed, 27 May 2026 11:42:51 +0800
+
 glib2.0 (2.80.1-1deepin4) unstable; urgency=medium
 
   * Fix: CVE-2025-13601

@@ -1,0 +1,48 @@
+From a6cc8e9e3becf254d7e31a1740a506fe6f093646 Mon Sep 17 00:00:00 2001
+From: Philip Withnall <pwithnall@gnome.org>
+Date: Wed, 18 Mar 2026 16:05:38 +0000
+Subject: [PATCH] gdbusmessage: Add missing guidance about how to use
+ g_dbus_message_new_from_blob()
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+The intention always seems to have been for calls to this function to be
+paired with a prior call to `g_dbus_message_bytes_needed()`.
+
+Let’s make that clearer, and add a precondition check for a minimum
+length we know we require.
+
+Signed-off-by: Philip Withnall <pwithnall@gnome.org>
+
+Index: glib2.0/gio/gdbusmessage.c
+===================================================================
+--- glib2.0.orig/gio/gdbusmessage.c
++++ glib2.0/gio/gdbusmessage.c
+@@ -2314,8 +2314,14 @@ g_dbus_message_bytes_needed (guchar  *bl
+  * @capabilities: A #GDBusCapabilityFlags describing what protocol features are supported.
+  * @error: Return location for error or %NULL.
+  *
+- * Creates a new #GDBusMessage from the data stored at @blob. The byte
+- * order that the message was in can be retrieved using
++ * Creates a new #GDBusMessage from the data stored at @blob.
++ *
++ * You must have previously called g_dbus_message_bytes_needed() on @blob, and
++ * ensure that @blob is at least as long as the return value from that function
++ * indicates. In particular, that means that @blob must be at least 16 bytes
++ * long (but will typically be much longer).
++ *
++ * The byte order that the message was in can be retrieved using
+  * g_dbus_message_get_byte_order().
+  *
+  * If the @blob cannot be parsed, contains invalid fields, or contains invalid
+@@ -2348,6 +2354,9 @@ g_dbus_message_new_from_blob (guchar
+   g_return_val_if_fail (blob != NULL, NULL);
+   g_return_val_if_fail (error == NULL || *error == NULL, NULL);
+ 
++  /* blob_len must actually be >= the value returned by g_dbus_message_bytes_needed(), but 16 bytes is a known minimum */
++  g_return_val_if_fail (blob_len >= 16, NULL);
++
+   message = g_dbus_message_new ();
+ 
+   memset (&mbuf, 0, sizeof (mbuf));

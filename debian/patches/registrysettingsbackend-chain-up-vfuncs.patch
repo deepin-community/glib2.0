@@ -1,0 +1,28 @@
+From ff844189a7067a54d56cd525c103b2a086546321 Mon Sep 17 00:00:00 2001
+From: Maximiliano Sandoval <msandova@gnome.org>
+Date: Fri, 10 Apr 2026 22:40:53 +0200
+Subject: [PATCH] registrysettingsbackend: Chain up vfuncs
+
+
+Index: glib2.0/gio/gregistrysettingsbackend.c
+===================================================================
+--- glib2.0.orig/gio/gregistrysettingsbackend.c
++++ glib2.0/gio/gregistrysettingsbackend.c
+@@ -2197,6 +2197,8 @@ g_registry_settings_backend_finalize (GO
+ 
+   g_free (self->base_path);
+   g_free (self->base_pathw);
++
++  G_OBJECT_CLASS (g_registry_settings_backend_parent_class)->finalize (object);
+ }
+ 
+ static void
+@@ -2204,6 +2206,8 @@ g_registry_settings_backend_constructed
+ {
+   GRegistrySettingsBackend *self = G_REGISTRY_SETTINGS_BACKEND (object);
+ 
++  G_OBJECT_CLASS (g_registry_settings_backend_parent_class)->constructed (object);
++
+   if (self->base_key == NULL || self->base_path == NULL || self->base_pathw == NULL)
+     {
+       self->base_key = HKEY_CURRENT_USER;
