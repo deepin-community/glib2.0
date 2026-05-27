@@ -1,3 +1,11 @@
+glib2.0 (2.80.1-1deepin5) unstable; urgency=medium
+
+  * Backport upstream fixes:
+  * 656ad458: gdbusintrospection: Add some assertions before array
+    dereferences
+
+ -- jiabowen <jiabowen@uniontech.com>  Wed, 27 May 2026 17:36:47 +0800
+
 glib2.0 (2.80.1-1deepin4) unstable; urgency=medium
 
   * Fix: CVE-2025-13601
