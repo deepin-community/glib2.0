@@ -1,3 +1,9 @@
+
+glib2.0 (2.80.1-1deepin4+deepin1) unstable; urgency=medium
+
+  * Mark g_sequence_get_length and g_sequence_is_empty as G_GNUC_PURE
+
+ -- deepin-ci-robot <packages@deepin.org>  Tue, 09 Jun 2026 09:14:05 +0800
 glib2.0 (2.80.1-1deepin4) unstable; urgency=medium
 
   * Fix: CVE-2025-13601
