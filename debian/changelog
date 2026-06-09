@@ -1,3 +1,9 @@
+
+glib2.0 (2.80.1-1deepin5) unstable; urgency=medium
+
+  * perf: enhance g_array_maybe_expand performance by caching max_len
+
+ -- deepin-ci-robot <packages@deepin.org>  Tue, 09 Jun 2026 09:32:52 +0800
 glib2.0 (2.80.1-1deepin4) unstable; urgency=medium
 
   * Fix: CVE-2025-13601
