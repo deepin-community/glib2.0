@@ -1,3 +1,9 @@
+
+glib2.0 (2.80.1-1deepin5) unstable; urgency=medium
+
+  * Fix g_get_num_processors() on macOS to report performance cores only
+
+ -- deepin-ci-robot <packages@deepin.org>  Tue, 09 Jun 2026 09:34:03 +0800
 glib2.0 (2.80.1-1deepin4) unstable; urgency=medium
 
   * Fix: CVE-2025-13601
