@@ -1,0 +1,64 @@
+From: Sergey Bugaev <bugaevc@gmail.com>
+Date: Mon, 16 Mar 2026 11:44:36 +0300
+Subject: [PATCH] liststore: Micro-optimize no-op bulk operations
+
+If we can see we're not going to be doing anything, bail out early.
+
+Also mark g_sequence_get_length() and g_sequence_is_empty() as pure,
+which helps GCC to figure out that the calls can be dropped on the code
+paths that end up not using its return value.
+
+Origin: upstream, https://gitlab.gnome.org/GNOME/glib/-/merge_requests/5099
+Bug: https://gitlab.gnome.org/GNOME/glib/-/merge_requests/5099
+Applied-Upstream: commit:a9e4ebd235a12414f9de3cfb0d097a136342d670
+
+---
+ gio/gliststore.c | 5 +++++
+ glib/gsequence.h | 4 ++--
+ 2 files changed, 7 insertions(+), 2 deletions(-)
+
+diff --git a/gio/gliststore.c b/gio/gliststore.c
+index 41450f6c304..cc8d9a670bc 100644
+--- a/gio/gliststore.c
++++ b/gio/gliststore.c
+@@ -431,6 +431,8 @@ g_list_store_remove_all (GListStore *store)
+   g_return_if_fail (G_IS_LIST_STORE (store));
+ 
+   n_items = g_sequence_get_length (store->items);
++  if (n_items == 0)
++    return;
+   g_sequence_remove_range (g_sequence_get_begin_iter (store->items),
+                            g_sequence_get_end_iter (store->items));
+ 
+@@ -477,6 +479,9 @@ g_list_store_splice (GListStore *store,
+   n_items = g_sequence_get_length (store->items);
+   g_return_if_fail (position + n_removals <= n_items);
+ 
++  if (n_removals == 0 && n_additions == 0)
++    return;
++
+   it = g_sequence_get_iter_at_pos (store->items, position);
+ 
+   if (n_removals)
+diff --git a/glib/gsequence.h b/glib/gsequence.h
+index c1b34049354..de154aaa8a5 100644
+--- a/glib/gsequence.h
++++ b/glib/gsequence.h
+@@ -43,7 +43,7 @@ GSequence *    g_sequence_new                (GDestroyNotify            data_des
+ GLIB_AVAILABLE_IN_ALL
+ void           g_sequence_free               (GSequence                *seq);
+ GLIB_AVAILABLE_IN_ALL
+-gint           g_sequence_get_length         (GSequence                *seq);
++gint           g_sequence_get_length         (GSequence                *seq) G_GNUC_PURE;
+ GLIB_AVAILABLE_IN_ALL
+ void           g_sequence_foreach            (GSequence                *seq,
+                                               GFunc                     func,
+@@ -62,7 +62,7 @@ void           g_sequence_sort_iter          (GSequence                *seq,
+                                               GSequenceIterCompareFunc  cmp_func,
+                                               gpointer                  cmp_data);
+ GLIB_AVAILABLE_IN_2_48
+-gboolean       g_sequence_is_empty           (GSequence                *seq);
++gboolean       g_sequence_is_empty           (GSequence                *seq) G_GNUC_PURE;
+ 
+ 
+ /* Getting iters */
