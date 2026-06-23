@@ -2,7 +2,7 @@ Index: glib2.0/gio/gdbusconnection.c
 ===================================================================
 --- glib2.0.orig/gio/gdbusconnection.c
 +++ glib2.0/gio/gdbusconnection.c
-@@ -3858,14 +3858,37 @@ g_dbus_connection_signal_subscribe (GDBu
+@@ -3858,14 +3858,36 @@ g_dbus_connection_signal_subscribe (GDBu
     */
  
 +  /* Keep this as a bare g_return_val_if_fail: it is the type-safety guard.
