@@ -1,0 +1,167 @@
+Index: glib2.0/gio/gdbusconnection.c
+===================================================================
+--- glib2.0.orig/gio/gdbusconnection.c
++++ glib2.0/gio/gdbusconnection.c
+@@ -3858,14 +3858,31 @@ g_dbus_connection_signal_subscribe (GDBu
+    */
+ 
+   g_return_val_if_fail (G_IS_DBUS_CONNECTION (connection), 0);
+-  g_return_val_if_fail (sender == NULL || (g_dbus_is_name (sender) && (connection->flags & G_DBUS_CONNECTION_FLAGS_MESSAGE_BUS_CONNECTION)), 0);
+-  g_return_val_if_fail (interface_name == NULL || g_dbus_is_interface_name (interface_name), 0);
+-  g_return_val_if_fail (member == NULL || g_dbus_is_member_name (member), 0);
+-  g_return_val_if_fail (object_path == NULL || g_variant_is_object_path (object_path), 0);
+   g_return_val_if_fail (callback != NULL, 0);
+-  g_return_val_if_fail (check_initialized (connection), 0);
+-  g_return_val_if_fail (!((flags & G_DBUS_SIGNAL_FLAGS_MATCH_ARG0_PATH) && (flags & G_DBUS_SIGNAL_FLAGS_MATCH_ARG0_NAMESPACE)), 0);
+-  g_return_val_if_fail (!(arg0 == NULL && (flags & (G_DBUS_SIGNAL_FLAGS_MATCH_ARG0_PATH | G_DBUS_SIGNAL_FLAGS_MATCH_ARG0_NAMESPACE))), 0);
++
++#define SUBSCRIBE_RETURN_0() \
++  G_STMT_START { \
++    if (user_data_free_func != NULL) \
++      user_data_free_func (user_data); \
++    return 0; \
++  } G_STMT_END
++
++  if (!(sender == NULL || (g_dbus_is_name (sender) && (connection->flags & G_DBUS_CONNECTION_FLAGS_MESSAGE_BUS_CONNECTION))))
++    SUBSCRIBE_RETURN_0 ();
++  if (interface_name != NULL && !g_dbus_is_interface_name (interface_name))
++    SUBSCRIBE_RETURN_0 ();
++  if (member != NULL && !g_dbus_is_member_name (member))
++    SUBSCRIBE_RETURN_0 ();
++  if (object_path != NULL && !g_variant_is_object_path (object_path))
++    SUBSCRIBE_RETURN_0 ();
++  if (!check_initialized (connection))
++    SUBSCRIBE_RETURN_0 ();
++  if ((flags & G_DBUS_SIGNAL_FLAGS_MATCH_ARG0_PATH) && (flags & G_DBUS_SIGNAL_FLAGS_MATCH_ARG0_NAMESPACE))
++    SUBSCRIBE_RETURN_0 ();
++  if (arg0 == NULL && (flags & (G_DBUS_SIGNAL_FLAGS_MATCH_ARG0_PATH | G_DBUS_SIGNAL_FLAGS_MATCH_ARG0_NAMESPACE)))
++    SUBSCRIBE_RETURN_0 ();
++
++#undef SUBSCRIBE_RETURN_0
+ 
+   CONNECTION_LOCK (connection);
+ 
+Index: glib2.0/gio/tests/gdbus-connection.c
+===================================================================
+--- glib2.0.orig/gio/tests/gdbus-connection.c
++++ glib2.0/gio/tests/gdbus-connection.c
+@@ -1411,6 +1411,110 @@ test_connection_basic (void)
+ 
+ /* ---------------------------------------------------------------------------------------------------- */
+ 
++static gint destroy_notify_call_count;
++
++static void
++counting_destroy_notify (gpointer user_data)
++{
++  destroy_notify_call_count++;
++}
++
++static void
++test_connection_signal_subscribe_user_data_leak (void)
++{
++  GDBusConnection *c;
++  GError *error = NULL;
++  guint sub_id;
++
++  session_bus_up ();
++  c = g_bus_get_sync (G_BUS_TYPE_SESSION, NULL, &error);
++  g_assert_no_error (error);
++  g_assert_nonnull (c);
++
++  /* Test: invalid interface_name -> should return 0 and free user_data */
++  destroy_notify_call_count = 0;
++  sub_id = g_dbus_connection_signal_subscribe (c,
++                                               NULL,
++                                               "not-a-valid-interface",
++                                               NULL,
++                                               NULL,
++                                               NULL,
++                                               G_DBUS_SIGNAL_FLAGS_NONE,
++                                               on_name_owner_changed,
++                                               &destroy_notify_call_count,
++                                               counting_destroy_notify);
++  g_assert_cmpuint (sub_id, ==, 0);
++  g_assert_cmpint (destroy_notify_call_count, ==, 1);
++
++  /* Test: invalid member -> should return 0 and free user_data */
++  destroy_notify_call_count = 0;
++  sub_id = g_dbus_connection_signal_subscribe (c,
++                                               NULL,
++                                               NULL,
++                                               "NotAMember",
++                                               NULL,
++                                               NULL,
++                                               G_DBUS_SIGNAL_FLAGS_NONE,
++                                               on_name_owner_changed,
++                                               &destroy_notify_call_count,
++                                               counting_destroy_notify);
++  g_assert_cmpuint (sub_id, ==, 0);
++  g_assert_cmpint (destroy_notify_call_count, ==, 1);
++
++  /* Test: invalid object_path -> should return 0 and free user_data */
++  destroy_notify_call_count = 0;
++  sub_id = g_dbus_connection_signal_subscribe (c,
++                                               NULL,
++                                               NULL,
++                                               NULL,
++                                               "not/an/object/path",
++                                               NULL,
++                                               G_DBUS_SIGNAL_FLAGS_NONE,
++                                               on_name_owner_changed,
++                                               &destroy_notify_call_count,
++                                               counting_destroy_notify);
++  g_assert_cmpuint (sub_id, ==, 0);
++  g_assert_cmpint (destroy_notify_call_count, ==, 1);
++
++  /* Test: sender with well-known name on message bus but also invalid flags -> should free user_data */
++  destroy_notify_call_count = 0;
++  sub_id = g_dbus_connection_signal_subscribe (c,
++                                               "org.example.SomeName",
++                                               NULL,
++                                               NULL,
++                                               NULL,
++                                               NULL,
++                                               G_DBUS_SIGNAL_FLAGS_MATCH_ARG0_PATH | G_DBUS_SIGNAL_FLAGS_MATCH_ARG0_NAMESPACE,
++                                               on_name_owner_changed,
++                                               &destroy_notify_call_count,
++                                               counting_destroy_notify);
++  g_assert_cmpuint (sub_id, ==, 0);
++  g_assert_cmpint (destroy_notify_call_count, ==, 1);
++
++  /* Test: valid arguments -> should succeed and NOT free user_data yet */
++  destroy_notify_call_count = 0;
++  sub_id = g_dbus_connection_signal_subscribe (c,
++                                               NULL,
++                                               "org.example.Foo",
++                                               "Bar",
++                                               "/org/example/Foo",
++                                               NULL,
++                                               G_DBUS_SIGNAL_FLAGS_NONE,
++                                               on_name_owner_changed,
++                                               &destroy_notify_call_count,
++                                               counting_destroy_notify);
++  g_assert_cmpuint (sub_id, !=, 0);
++  g_assert_cmpint (destroy_notify_call_count, ==, 0);
++
++  g_dbus_connection_signal_unsubscribe (c, sub_id);
++  g_main_context_iteration (NULL, FALSE);
++
++  g_object_unref (c);
++  session_bus_down ();
++}
++
++/* ---------------------------------------------------------------------------------------------------- */
++
+ int
+ main (int   argc,
+       char *argv[])
+@@ -1435,6 +1539,8 @@ main (int   argc,
+   g_test_add_func ("/gdbus/connection/filter", test_connection_filter);
+   g_test_add_func ("/gdbus/connection/serials", test_connection_serials);
+   g_test_add_func ("/gdbus/connection/cancel", test_connection_cancel);
++  g_test_add_func ("/gdbus/connection/signal-subscribe-user-data-leak",
++                   test_connection_signal_subscribe_user_data_leak);
+   ret = g_test_run();
+ 
+   g_main_loop_unref (loop);
