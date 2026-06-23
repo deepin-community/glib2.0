@@ -2,15 +2,19 @@ Index: glib2.0/gio/gdbusconnection.c
 ===================================================================
 --- glib2.0.orig/gio/gdbusconnection.c
 +++ glib2.0/gio/gdbusconnection.c
-@@ -3858,14 +3858,31 @@ g_dbus_connection_signal_subscribe (GDBu
+@@ -3858,14 +3858,37 @@ g_dbus_connection_signal_subscribe (GDBu
     */
  
++  /* Keep this as a bare g_return_val_if_fail: it is the type-safety guard.
++   * If connection is not a GDBusConnection, dereferencing its members below
++   * (e.g. connection->flags) would be undefined behavior, so we must not
++   * attempt any cleanup that relies on connection's state. */
    g_return_val_if_fail (G_IS_DBUS_CONNECTION (connection), 0);
 -  g_return_val_if_fail (sender == NULL || (g_dbus_is_name (sender) && (connection->flags & G_DBUS_CONNECTION_FLAGS_MESSAGE_BUS_CONNECTION)), 0);
 -  g_return_val_if_fail (interface_name == NULL || g_dbus_is_interface_name (interface_name), 0);
 -  g_return_val_if_fail (member == NULL || g_dbus_is_member_name (member), 0);
 -  g_return_val_if_fail (object_path == NULL || g_variant_is_object_path (object_path), 0);
-   g_return_val_if_fail (callback != NULL, 0);
+-  g_return_val_if_fail (callback != NULL, 0);
 -  g_return_val_if_fail (check_initialized (connection), 0);
 -  g_return_val_if_fail (!((flags & G_DBUS_SIGNAL_FLAGS_MATCH_ARG0_PATH) && (flags & G_DBUS_SIGNAL_FLAGS_MATCH_ARG0_NAMESPACE)), 0);
 -  g_return_val_if_fail (!(arg0 == NULL && (flags & (G_DBUS_SIGNAL_FLAGS_MATCH_ARG0_PATH | G_DBUS_SIGNAL_FLAGS_MATCH_ARG0_NAMESPACE))), 0);
@@ -29,6 +33,8 @@ Index: glib2.0/gio/gdbusconnection.c
 +  if (member != NULL && !g_dbus_is_member_name (member))
 +    SUBSCRIBE_RETURN_0 ();
 +  if (object_path != NULL && !g_variant_is_object_path (object_path))
++    SUBSCRIBE_RETURN_0 ();
++  if (callback == NULL)
 +    SUBSCRIBE_RETURN_0 ();
 +  if (!check_initialized (connection))
 +    SUBSCRIBE_RETURN_0 ();
