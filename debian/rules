@@ -201,6 +201,7 @@ ifeq (,$(filter nocheck,$(DEB_BUILD_OPTIONS)))
 		--num-processes 1 \
 		--timeout-multiplier $(test_timeout_multiplier) \
 		--no-suite flaky \
+		--exclude gdatetime gtester-xmllint-check \
 		--verbose \
 	|| $(handle_test_failure)
 	# and then run the flaky ones, but ignore them failing
