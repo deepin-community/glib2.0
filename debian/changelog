@@ -1,3 +1,15 @@
+glib2.0 (2.80.1-1deepin5) unstable; urgency=medium
+
+  * CVE-2025-14087: Buffer underflow in GVariant parser
+  * CVE-2025-14512: Integer overflow in gfileattribute byte string escaping
+  * CVE-2025-4056: Integer overflow in gspawn-win32 argv handling
+  * CVE-2026-0988: Integer overflow in gbufferedinputstream peek()
+  * CVE-2026-1484: Integer overflow in gbase64 encoding
+  * CVE-2026-1485: Integer overflow in gcontenttype header parsing
+  * CVE-2026-1489: Buffer overflow in guniprop Unicode case handling
+
+ -- deepin-ci-robot <packages@deepin.org>  Thu, 02 Jul 2026 10:00:00 +0800
+
 glib2.0 (2.80.1-1deepin4) unstable; urgency=medium
 
   * Fix: CVE-2025-13601
