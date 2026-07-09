@@ -16,6 +16,7 @@ workarounds/gdbus-server-auth-Normally-skip-flaky-DBUS_COOKIE_SHA1-te.patch
 workarounds/Skip-memory-monitor-dbus-test-if-not-specifically-request.patch
 workarounds/tests-Skip-debugcontroller-test.patch
 workarounds/testfilemonitor-Skip-if-we-are-avoiding-flaky-tests.patch
+workarounds/Skip-gdatetime-posix-parse-test-when-PST8PDT-unavailable.patch
 debian/girepository-Describe-the-Debian-specific-cross-prefixed-.patch
 
 support-trashing-long-file-name.patch
@@ -30,3 +31,4 @@ CVE-2026-0988.patch
 CVE-2026-1484.patch
 CVE-2026-1485.patch
 CVE-2026-1489.patch
+workarounds/Make-gtester-xmllint-check-conditional.patch
