@@ -23,9 +23,8 @@ include /usr/share/dpkg/default.mk
 
 DEB_CONFIGURE_EXTRA_FLAGS =
 
-ifneq ($(DEB_HOST_ARCH_ENDIAN),$(DEB_BUILD_ARCH_ENDIAN))
-$(error Cross-compiling gobject-introspection requires host endianness = build endianness)
-endif
+# Can be dropped when we switch to dh compat 14
+DEB_CONFIGURE_EXTRA_FLAGS += -Dauto_features=enabled
 
 ifneq ($(DEB_HOST_ARCH),$(DEB_BUILD_ARCH))
 # Properties of glibc. These are the same for all Debian architectures,
@@ -61,7 +60,10 @@ maintainer-update-unicode-data:
 	rm -f glib/gunidecomp.h
 	rm -f glib/tests/casefold.txt
 	rm -f glib/tests/casemap.txt
-	$(CURDIR)/tools/update-unicode-data.sh $(CURDIR)/unicode-data 15.1.0
+	$(CURDIR)/tools/update-unicode-data.sh $(CURDIR)/unicode-data 16.0.0
+
+debian/extra-substvars:
+	dpkg-architecture -c debian/extra-substvars.py > debian/extra-substvars
 
 execute_before_dh_auto_configure: cross-tools
 
@@ -74,20 +76,15 @@ cross-tools: debian/emulated-g-ir-tool.in debian/rules
 	mkdir -p debian/cross-tools
 	set -e; for tool in $(cross_tools); do \
 		sed \
-			-e 's|@CAN_RUN@|/usr/lib/$(DEB_HOST_MULTIARCH)/glib-2.0/deb-can-run|' \
-			-e 's|@DEB_HOST_ARCH@|$(DEB_HOST_ARCH)|' \
 			-e 's|@DEB_HOST_GNU_TYPE@|$(DEB_HOST_GNU_TYPE)|' \
-			-e 's|@DEB_HOST_MULTIARCH@|$(DEB_HOST_MULTIARCH)|' \
-			-e 's|@TOOL@|'"$$tool"'|' \
 			-e 's|@TOOL_PATH@|/usr/lib/$(DEB_HOST_MULTIARCH)/glib-2.0/'"$$tool"'|' \
 			< $< > debian/cross-tool.tmp; \
 		chmod 0755 debian/cross-tool.tmp; \
 		mv debian/cross-tool.tmp debian/cross-tools/$(DEB_HOST_GNU_TYPE)-$$tool; \
 	done
-	$(DEB_HOST_GNU_TYPE)-gcc $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) -odebian/cross-tools/deb-can-run debian/can-run.c
 
 override_dh_auto_configure:
-	sed -e 's|@DEB_HOST_ARCH@|$(DEB_HOST_ARCH)|g' \
+	sed -e 's|@DEB_HOST_GNU_TYPE@|$(DEB_HOST_GNU_TYPE)|g' \
 		< debian/meson/exe-wrapper.ini.in \
 		> debian/meson/exe-wrapper.ini
 	dh_auto_configure \
@@ -163,7 +160,6 @@ ifeq (,$(filter nocheck,$(DEB_BUILD_OPTIONS)))
 		-u LD_PRELOAD \
 		DEB_BUILD_TIME_TESTS=1 \
 		LC_ALL=C.UTF-8 \
-		MESON_TESTTHREADS=1 \
 	debian/tests/run-with-locales \
 		--generate de_DE=ISO-8859-1 \
 		--generate de_DE.utf8 \
@@ -196,9 +192,9 @@ ifeq (,$(filter nocheck,$(DEB_BUILD_OPTIONS)))
 		--generate tt_RU.utf8 \
 		--generate tt_RU@iqtelif=UTF-8 \
 		-- \
-	meson test -C debian/build/deb \
-		--no-rebuild \
-		--num-processes 1 \
+	dh_auto_test \
+		-B debian/build/deb \
+		-- \
 		--timeout-multiplier $(test_timeout_multiplier) \
 		--no-suite flaky \
 		--verbose \
@@ -210,10 +206,9 @@ ifeq (,$(filter nocheck,$(DEB_BUILD_OPTIONS)))
 		-u LD_PRELOAD \
 		DEB_BUILD_TIME_TESTS=1 \
 		LC_ALL=C.UTF-8 \
-		MESON_TESTTHREADS=1 \
-	meson test -C debian/build/deb \
-		--no-rebuild \
-		--num-processes 1 \
+	dh_auto_test \
+		-B debian/build/deb \
+		-- \
 		--timeout-multiplier $(test_timeout_multiplier) \
 		--suite flaky \
 		--verbose \
@@ -223,10 +218,6 @@ endif
 # Skip build-time tests if all we are building is documentation;
 # running them once per architecture is plenty.
 override_dh_auto_test-indep:
-
-# Let's get failing tests' stdout and stderr so we have some information when
-# a build fails
-export VERBOSE=1
 
 ifeq ($(DEB_HOST_ARCH_OS),linux)
 enable_libmount := enabled
@@ -238,23 +229,17 @@ endif
 
 DEB_CONFIGURE_FLAGS_deb := \
 	--default-library both \
-	-Dlibelf=enabled \
+	-Ddtrace=disabled \
+	-Dgir_dir_prefix=lib/${DEB_HOST_MULTIARCH} \
+	-Dglib_debug=disabled \
 	-Dlibmount=$(enable_libmount) \
 	-Dmultiarch=true \
 	-Dselinux=$(enable_selinux) \
-	-Dsystemtap=true \
+	-Dsystemtap=disabled \
 	-Dxattr=$(have_non_stub_xattr) \
 	$(NULL)
 
-ifeq ($(filter nodoc,$(DEB_BUILD_PROFILES)),)
-DEB_CONFIGURE_FLAGS_deb += -Dman-pages=enabled
-else
-DEB_CONFIGURE_FLAGS_deb += -Dman-pages=disabled
-endif
-
-ifneq ($(filter gir% %-doc,$(built_binaries)),)
-DEB_CONFIGURE_FLAGS_deb += -Dgir_dir_prefix=lib/${DEB_HOST_MULTIARCH}
-DEB_CONFIGURE_FLAGS_deb += -Dintrospection=enabled
+ifneq ($(filter gir1.2-% %-doc,$(built_binaries)),)
 ifneq ($(DEB_HOST_ARCH),$(DEB_BUILD_ARCH))
 DEB_CONFIGURE_FLAGS_deb += --cross-file=$(DEB_HOST_GNU_TYPE)-gobject-introspection.ini
 # GLib insists on having an exe_wrapper when we enable introspection,
@@ -278,24 +263,46 @@ else
 DEB_CONFIGURE_FLAGS_deb += -Ddocumentation=false
 endif
 
-ifeq ($(filter pkg.glib2.0.nosysprof,$(DEB_BUILD_PROFILES)),)
-ifneq ($(filter amd64 arm64 armel armhf i386 mips64el ppc64el riscv64 s390x powerpc ppc64,$(DEB_HOST_ARCH)),)
-DEB_CONFIGURE_FLAGS_deb += -Dsysprof=enabled
+ifeq ($(filter nodoc,$(DEB_BUILD_PROFILES)),)
+DEB_CONFIGURE_FLAGS_deb += -Dman-pages=enabled
+else
+DEB_CONFIGURE_FLAGS_deb += -Dman-pages=disabled
+endif
+
+ifneq ($(filter pkg.glib2.0.nosysprof,$(DEB_BUILD_PROFILES)),)
+DEB_CONFIGURE_FLAGS_deb += -Dsysprof=disabled
+else
+ifeq ($(filter amd64 arm64 armel armhf i386 mips64el ppc64el riscv64 s390x hppa loong64 powerpc ppc64 sh4,$(DEB_HOST_ARCH)),)
+DEB_CONFIGURE_FLAGS_deb += -Dsysprof=disabled
 endif
 endif
 
 DEB_CONFIGURE_FLAGS_udeb := \
 	--default-library shared \
 	-Ddocumentation=false \
+	-Ddtrace=disabled \
+	-Dglib_debug=disabled \
 	-Dinstalled_tests=false \
 	-Dintrospection=disabled \
+	-Dlibelf=disabled \
 	-Dlibmount=disabled \
 	-Dman-pages=disabled \
 	-Dselinux=disabled \
+	-Dsysprof=disabled \
+	-Dsystemtap=disabled \
 	-Dxattr=$(have_non_stub_xattr) \
 	$(NULL)
 
 override_dh_auto_build:
+	# GResource files don't contain any executable code, only an embeddable
+	# data blob, so compiler flags that would affect the behaviour of
+	# executable code (ABIs, hardening, optimizations, debug info) are
+	# not relevant.
+	@echo 'blhc: ignore-line-regexp: .*/glib-compile-resources\s+--compiler=.*'
+	# One test uses the C compiler to convert a binary blob into a raw
+	# object; again, there is no executable code involved, so compiler
+	# options that affect executable code aren't interesting.
+	@echo 'blhc: ignore-line-regexp: .*-Wl,-b,binary\s+-nostdlib\s+gio/tests/test5\.gresource.*'
 	mkdir -p debian/tmp-xdg-runtime-dir
 	dh_auto_build --builddirectory=debian/build/deb
 ifneq ($(filter %-udeb,$(built_binaries)),)
@@ -327,12 +334,13 @@ endif
 override_dh_python3:
 	# dh_python3 can't process both a private directory and /usr/bin
 	# in the same invocation
-	dh_python3 -plibglib2.0-dev-bin /usr/share/glib-2.0/codegen
+	dh_python3 -plibgio-2.0-dev-bin /usr/share/glib-2.0/codegen
+	dh_python3 -plibgio-2.0-dev-bin /usr/share/glib-2.0/gdb
 	dh_python3 -plibglib2.0-tests --no-ext-rename /usr/libexec/installed-tests/glib
 	dh_python3
 
 override_dh_install:
-ifneq ($(filter gir%,$(built_binaries)),)
+ifneq ($(filter gir1.2-%,$(built_binaries)),)
 	# The build currently installs to /usr/share/gir-1.0 even though we
 	# specified lib/${DEB_HOST_MULTIARCH} as our gir_dir_prefix
 	if ! [ -d debian/tmp/usr/lib/${DEB_HOST_MULTIARCH}/gir-1.0 ]; then \
@@ -370,9 +378,9 @@ endif
 
 ifeq ($(filter nodoc,$(DEB_BUILD_PROFILES)),)
 execute_after_dh_installman-arch:
-	install -d debian/libglib2.0-dev/usr/share/man/man1
+	install -d debian/girepository-tools/usr/share/man/man1
 	set -e; for tool in $(cross_tools); do \
-		ln -s "$$tool.1.gz" "debian/libglib2.0-dev/usr/share/man/man1/$(DEB_HOST_GNU_TYPE)-$$tool.1.gz"; \
+		ln -s "$$tool.1.gz" "debian/girepository-tools/usr/share/man/man1/$(DEB_HOST_GNU_TYPE)-$$tool.1.gz"; \
 	done
 endif
 
@@ -398,13 +406,16 @@ endif
 execute_before_dh_installdeb-arch:
 	set -e; for script in triggers; do \
 		sed -e"s/#DEB_HOST_MULTIARCH#/$(DEB_HOST_MULTIARCH)/g" \
-		    debian/libglib2.0-0.$$script.in \
-		    > debian/libglib2.0-0.$$script ; \
+		    debian/libglib2.0-0t64.$$script.in \
+		    > debian/libglib2.0-0t64.$$script ; \
 	done
 
-override_dh_gencontrol:
-ifneq ($(filter libglib2.0-dev,$(built_binaries)),)
-	dh_gencontrol -plibglib2.0-dev -plibglib2.0-dev-bin -- \
-		-Vlocal:DEB-HOST-ARCH-OS=$(DEB_HOST_ARCH_OS)
-endif
-	dh_gencontrol --remaining-packages
+debian/libgirepository-2.0-0.symbols: debian/libgirepository-2.0-0.symbols.in debian/extra-substvars
+	set -e; \
+	libffiN=$$(sed -ne 's/^local:libffiN=//p' debian/extra-substvars); \
+	sed -e "s/@libffiN@/$$libffiN/" < $< > $@
+
+execute_before_dh_makeshlibs: debian/libgirepository-2.0-0.symbols
+
+override_dh_gencontrol: debian/extra-substvars
+	dh_gencontrol -- -Tdebian/extra-substvars

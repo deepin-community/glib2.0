@@ -4,6 +4,8 @@
 #
 # Copyright (C) 2008-2011 Red Hat, Inc.
 #
+# SPDX-License-Identifier: LGPL-2.1-or-later
+#
 # This library is free software; you can redistribute it and/or
 # modify it under the terms of the GNU Lesser General Public
 # License as published by the Free Software Foundation; either
@@ -459,7 +461,7 @@ class Method:
         method_invocation_arg.gvalue_type = "object"
         method_invocation_arg.gvalue_get = "g_marshal_value_peek_object"
         method_invocation_arg.gclosure_marshaller = None
-        self.marshaller_in_args = [method_invocation_arg] + self.in_args
+        self.marshaller_in_args = [method_invocation_arg]
 
         if self.unix_fd:
             fd_list_arg = Arg("fd_list", None)
@@ -467,7 +469,9 @@ class Method:
             fd_list_arg.gvalue_type = "object"
             fd_list_arg.gvalue_get = "g_marshal_value_peek_object"
             fd_list_arg.gclosure_marshaller = None
-            self.marshaller_in_args.insert(0, fd_list_arg)
+            self.marshaller_in_args.append(fd_list_arg)
+
+        self.marshaller_in_args.extend(self.in_args)
 
         for a in self.annotations:
             a.post_process(interface_prefix, cns, cns_upper, cns_lower, self)

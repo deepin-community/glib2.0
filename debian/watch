@@ -1,7 +1,7 @@
 version=4
 opts="searchmode=plain, uversionmangle=s/\.(alpha|beta|rc)/~$1/, downloadurlmangle=s|cache.json||" \
 https://download.gnome.org/sources/glib/cache.json \
-	[\d.]+/glib-@ANY_VERSION@@ARCHIVE_EXT@
+	[\d.]+[02468]/glib-@ANY_VERSION@@ARCHIVE_EXT@
 #opts="mode=git,compression=xz" \
 #https://gitlab.gnome.org/GNOME/glib.git \
 #refs/tags/@ANY_VERSION@
@@ -12,4 +12,4 @@ https://download.gnome.org/sources/glib/cache.json \
 # to verify
 opts="component=unicode-data, compression=xz, downloadurlmangle=s#/?$#/UCD.zip#, filenamemangle=s#.*/([^/]+)/?$#UCD-$1.zip#" \
 https://www.unicode.org/Public/zipped/ \
-(15\.1\.0)/?
+(16\.0\.0)/?

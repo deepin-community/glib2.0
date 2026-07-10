@@ -218,6 +218,8 @@ main (int argc, char **argv)
       char *message = g_strdup_printf (_("Error parsing file ‘%s’: %s"), input[0], error->message);
       g_fprintf (stderr, "%s\n", message);
       g_free (message);
+      gi_ir_parser_free (parser);
+      g_error_free (error);
 
       return 1;
     }
@@ -228,6 +230,7 @@ main (int argc, char **argv)
 
   {
     GITypelib *typelib = NULL;
+    int write_successful;
 
     if (shlibs)
       {
@@ -245,18 +248,19 @@ main (int argc, char **argv)
       g_error (_("Invalid typelib for module ‘%s’: %s"),
                module->name, error->message);
 
-    if (!write_out_typelib (NULL, typelib))
-      return 1;
-
+    write_successful = write_out_typelib (NULL, typelib);
     g_clear_pointer (&typelib, gi_typelib_unref);
+
+    if (!write_successful)
+      {
+        gi_ir_parser_free (parser);
+        return 1;
+      }
   }
 
   g_debug ("[building] done");
 
-#if 0
-  /* No point */
   gi_ir_parser_free (parser);
-#endif
 
   return 0;
 }
