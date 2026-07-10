@@ -5,14 +5,9 @@
 
 #include <gio/gio.h>
 
+#include "gdbusprivate.h"
 #include "gdbus-tests.h"
 
-/* From the D-Bus Specification */
-#define DBUS_REQUEST_NAME_REPLY_PRIMARY_OWNER 1
-
-#define DBUS_SERVICE_DBUS "org.freedesktop.DBus"
-#define DBUS_PATH_DBUS "/org/freedesktop/DBus"
-#define DBUS_INTERFACE_DBUS DBUS_SERVICE_DBUS
 #define NAME_OWNER_CHANGED "NameOwnerChanged"
 
 /* A signal that each connection emits to indicate that it has finished
@@ -900,7 +895,7 @@ fixture_subscribe (Fixture             *f,
       if (subscribe->unsubscribe_immediately)
         {
           g_test_message ("\tImmediately unsubscribing");
-          g_dbus_connection_signal_unsubscribe (subscriber, id);
+          g_dbus_connection_signal_unsubscribe (subscriber, g_steal_handle_id (&id));
         }
       else
         {
@@ -1290,12 +1285,12 @@ teardown (Fixture *f,
   g_ptr_array_unref (f->proxies);
 
   if (f->finished_subscription != 0)
-    g_dbus_connection_signal_unsubscribe (subscriber, f->finished_subscription);
+    g_dbus_connection_signal_unsubscribe (subscriber, g_steal_handle_id (&f->finished_subscription));
 
   for (i = 0; i < G_N_ELEMENTS (f->subscriptions); i++)
     {
       if (f->subscriptions[i] != 0)
-        g_dbus_connection_signal_unsubscribe (subscriber, f->subscriptions[i]);
+        g_dbus_connection_signal_unsubscribe (subscriber, g_steal_handle_id (&f->subscriptions[i]));
     }
 
   g_ptr_array_unref (f->received);
