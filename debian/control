@@ -13,7 +13,6 @@ Build-Depends:
  dh-sequence-python3,
  docbook-xml,
  docbook-xsl,
- dpkg-dev (>= 1.22.5),
  gettext,
  libdbus-1-dev <!nocheck> <!noinsttest>,
  libelf-dev,
@@ -54,9 +53,7 @@ Homepage: https://gitlab.gnome.org/GNOME/glib
 Vcs-Browser: https://salsa.debian.org/gnome-team/glib
 Vcs-Git: https://salsa.debian.org/gnome-team/glib.git -b debian/trixie
 
-Package: libglib2.0-0t64
-Replaces:
- libglib2.0-0 (<< 2.80.0-7~),
+Package: libglib2.0-0
 Architecture: any
 Provides:
  libgio-2.0-0 (= ${binary:Version}),
@@ -64,7 +61,6 @@ Provides:
  libgmodule-2.0-0 (= ${binary:Version}),
  libgobject-2.0-0 (= ${binary:Version}),
  libgthread-2.0-0 (= ${binary:Version}),
- ${t64:Provides},
 Depends:
  ${misc:Depends},
  ${shlibs:Depends},
@@ -78,7 +74,6 @@ Breaks:
  gnome-shell (<< 44.9-2~),
  libedataserver-1.2-26 (<< 3.44.3-2~),
  libgladeui-2-6 (<< 3.22.2),
- libglib2.0-0 (<< 2.80.0-7~),
  libsoup2.4-tests (<< 2.72.0-3~),
 Suggests:
  low-memory-monitor,
@@ -167,7 +162,7 @@ Architecture: any
 Multi-Arch: same
 Depends:
  libffi-dev,
- libglib2.0-0t64 (= ${binary:Version}),
+ libglib2.0-0 (= ${binary:Version}),
  libmount-dev [linux-any],
  libpcre2-dev,
  libselinux1-dev [linux-any],
