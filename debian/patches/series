@@ -8,12 +8,15 @@ workarounds/closures-test-Skip-on-arm-unless-flaky-tests-are-allowed.patch
 workarounds/Disable-some-tests-on-slow-architectures-which-keep-faili.patch
 workarounds/Skip-test-which-performs-some-unreliable-floating-point-c.patch
 workarounds/Skip-unreliable-gdbus-threading-tests--by-default.patch
+workarounds/gmenumodel-test-Mark-as-flaky.patch
 workarounds/gvariant-test-Don-t-run-at-build-time-on-mips.patch
 workarounds/gdbus-server-auth-Normally-skip-flaky-DBUS_COOKIE_SHA1-te.patch
 workarounds/Skip-memory-monitor-dbus-test-if-not-specifically-request.patch
 workarounds/tests-Skip-debugcontroller-test.patch
 workarounds/testfilemonitor-Skip-if-we-are-avoiding-flaky-tests.patch
 debian/girepository-Describe-the-Debian-specific-cross-prefixed-.patch
+fix-test-timeout.patch
+keep-suffix-name-when-trashing.patch
 gfileutils-Preserve-mode-during-atomic-updates.patch
 gconvert-Error-out-if-g_escape_uri_string-would-overflow.patch
 fuzzing-Add-fuzz-tests-for-g_filename_-to-from-_uri.patch
@@ -31,3 +34,4 @@ CVE-2026-1489-1.patch
 CVE-2026-1489-2.patch
 CVE-2026-1489-3.patch
 CVE-2026-1489-4.patch
+workarounds/Make-gtester-xmllint-check-conditional.patch
