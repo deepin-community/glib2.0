@@ -48,7 +48,7 @@ if [ -e /mnt/bookworm/Packages ]; then
     echo "deb [trusted=yes] file:///mnt/bookworm ./" > /etc/apt/sources.list.d/proposed.list
 fi
 
-# Preconditions: install libglib2.0-0, libglib2.0-0t64, at least one
+# Preconditions: install libglib2.0-0, libglib2.0-0, at least one
 # GSettings schema and at least one GIO module.
 dpkg --add-architecture "$other_arch"
 apt-get -y update
@@ -83,7 +83,7 @@ if [ "${1-}" = 1110696 ]; then
     dpkg --remove-architecture i386
 fi
 
-# Upgrade to trixie with libglib2.0-0t64
+# Upgrade to trixie with libglib2.0-0
 cat > /etc/apt/sources.list.d/debian.sources <<EOF
 Types: deb
 URIs: http://deb.debian.org/debian
@@ -98,10 +98,10 @@ if [ -e /mnt/trixie/Packages ]; then
     echo "deb [trusted=yes] file:///mnt/trixie ./" > /etc/apt/sources.list.d/proposed.list
 fi
 
-# Reproducer (1): Upgrade to libglib2.0-0t64. This runs the postrm from
+# Reproducer (1): Upgrade to libglib2.0-0. This runs the postrm from
 # libglib2.0-0, which deletes necessary files.
 apt-get -y update
-apt-get -y install --purge libglib2.0-0t64
+apt-get -y install --purge libglib2.0-0
 sed -i -e 's/^set -e$/&x/g' /var/lib/dpkg/info/libglib2.0-0*.postrm || true
 
 assert test -e /usr/share/glib-2.0/schemas/org.gnome.desktop.interface.gschema.xml
@@ -113,9 +113,9 @@ assert test -s "/usr/lib/$this_tuple/gio/modules/libdconfsettings.so"
 assert test -e "/usr/lib/$this_tuple/gio/modules/giomodule.cache"
 assert test -s "/usr/lib/$this_tuple/gio/modules/giomodule.cache"
 
-# Workaround: Trigger the postinst of libglib2.0-0t64, which will regenerate
+# Workaround: Trigger the postinst of libglib2.0-0, which will regenerate
 # the generated files.
-apt-get -y install --reinstall libglib2.0-0t64
+apt-get -y install --reinstall libglib2.0-0
 sed -i -e 's/^set -e$/&x/g' /var/lib/dpkg/info/libglib2.0-0*.postrm || true
 
 assert test -e /usr/share/glib-2.0/schemas/org.gnome.desktop.interface.gschema.xml
@@ -153,12 +153,12 @@ esac
 
 # Merely removing GLib does not delete the generated files, although
 # they might have become empty.
-apt-get -y remove libglib2.0-0t64
+apt-get -y remove libglib2.0-0
 assert test -e /usr/share/glib-2.0/schemas/gschemas.compiled
 assert test -e "/usr/lib/$this_tuple/gio/modules/giomodule.cache"
 
 # Purge GLib completely, taking dependent packages with it.
-apt-get -y remove --purge libglib2.0-0t64
+apt-get -y remove --purge libglib2.0-0
 
 case "${1-}" in
     (extra-schema)
