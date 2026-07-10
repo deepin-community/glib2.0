@@ -1,8 +1,13 @@
-glib2.0 (2.84.4-3deepin1) UNRELEASED; urgency=medium
+glib2.0 (2.84.4-3deepin1) unstable; urgency=medium
 
   * Revert 64-bit time_t changes.
+  * Restore deepin patches on top of 2.84.4-3~deb13u3:
+    - fix-test-timeout: Set slow for gobject tests
+    - keep-suffix-name-when-trashing: Fix suffix truncation in trash
+    - gmenumodel-test: Mark as flaky
+    - Make-gtester-xmllint-check-conditional: Skip gracefully
 
- -- Tianyu Chen <sweetyfish@deepin.org>  Thu, 09 May 2024 13:20:48 +0800
+ -- lichenggang <lichenggang@deepin.org>  Fri, 10 Jul 2026 14:12:04 +0800
 
 glib2.0 (2.84.4-3~deb13u3) trixie; urgency=medium
 
