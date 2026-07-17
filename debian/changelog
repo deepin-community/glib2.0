@@ -1,3 +1,9 @@
+glib2.0 (2.84.4-3deepin2) unstable; urgency=medium
+
+  * fix(cve): CVE-2026-58011
+
+ -- deepin-ci-robot <packages@deepin.org>  Sat, 18 Jul 2026 03:21:54 +0800
+
 glib2.0 (2.84.4-3deepin1) unstable; urgency=medium
 
   * Revert 64-bit time_t changes.
