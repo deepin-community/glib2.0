@@ -1,3 +1,9 @@
+CVE-2026-58015.patch
+CVE-2026-58014.patch
+CVE-2026-58013.patch
+CVE-2026-58012.patch
+CVE-2026-58011.patch
+CVE-2026-58010.patch
 01_gettext-desktopfiles.patch
 debian/02_gettext-desktopfiles-ubuntu.patch
 debian/03_disble_glib_compile_schemas_warning.patch

@@ -1,3 +1,14 @@
+glib2.0 (2.84.4-3deepin1) unstable; urgency=high
+
+  * Fix CVE-2026-58010: backport upstream fix (Closes: CVE-2026-58010)
+  * Fix CVE-2026-58011: backport upstream fix (Closes: CVE-2026-58011)
+  * Fix CVE-2026-58012: backport upstream fix (Closes: CVE-2026-58012)
+  * Fix CVE-2026-58013: backport upstream fix (Closes: CVE-2026-58013)
+  * Fix CVE-2026-58014: backport upstream fix (Closes: CVE-2026-58014)
+  * Fix CVE-2026-58015: backport upstream fix (Closes: CVE-2026-58015)
+
+ -- deepin-ci-robot <packages@deepin.org>  Mon, 20 Jul 2026 16:00:00 +0800
+
 glib2.0 (2.84.4-3deepin1) unstable; urgency=medium
 
   * Revert 64-bit time_t changes.
