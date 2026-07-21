@@ -1,0 +1,51 @@
+Description: Remove g_local_file_query_exists vfunc to restore GLib 2.80 behavior
+ GLib 2.84 added a g_local_file_query_exists() vfunc that calls faccessat()
+ with AT_EACCESS | AT_SYMLINK_NOFOLLOW. glibc implements this via the
+ faccessat2() syscall, which is blocked by the Chromium seccomp sandbox
+ used by the 360 browser. This causes g_file_query_exists() to return
+ FALSE and breaks the right-click "Save As" feature.
+ .
+ GLib 2.80 did not have this vfunc; g_file_query_exists() fell back to
+ g_file_query_info() which uses g_lstat() (sandbox-safe). Remove the vfunc
+ definition and registration so the fallback path is used, matching 2.80.
+Author: Codex Agent <codex@deepin.org>
+Origin: https://github.com/Zeno-sole/glib2.0
+Last-Update: 2026-07-22
+
+--- a/gio/glocalfile.c
++++ b/gio/glocalfile.c
+@@ -1261,24 +1261,6 @@
+   return info;
+ }
+ 
+-/* FIXME: faccessat() is available on FreeBSD but appears to not work correctly
+- * here. This needs diagnosing; https://gitlab.gnome.org/GNOME/glib/-/issues/3495
+- *
+- * On Android (bionic as of 2015-02-24), faccess() returns EINVAL if any flags are set,
+- * so we have to use the fallback path. See
+- * https://cs.android.com/android/_/android/platform/bionic/+/35778253a5ed71e87a608ca590b63729d9f88567
+- */
+-#if defined(HAVE_FACCESSAT) && !defined(__FreeBSD__) && !defined(__ANDROID__)
+-static gboolean
+-g_local_file_query_exists (GFile        *file,
+-                           GCancellable *cancellable)
+-{
+-  GLocalFile *local = G_LOCAL_FILE (file);
+-
+-  return faccessat (0, local->filename, F_OK, AT_EACCESS | AT_SYMLINK_NOFOLLOW) == 0;
+-}
+-#endif
+-
+ static GFileAttributeInfoList *
+ g_local_file_query_settable_attributes (GFile         *file,
+ 					GCancellable  *cancellable,
+@@ -3162,9 +3144,6 @@
+   iface->monitor_dir = g_local_file_monitor_dir;
+   iface->monitor_file = g_local_file_monitor_file;
+   iface->measure_disk_usage = g_local_file_measure_disk_usage;
+-#if defined(HAVE_FACCESSAT) && !defined(__FreeBSD__) && !defined(__ANDROID__)
+-  iface->query_exists = g_local_file_query_exists;
+-#endif
+ 
+   iface->supports_thread_contexts = TRUE;
+ }

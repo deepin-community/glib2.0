@@ -1,3 +1,13 @@
+glib2.0 (2.84.4-3deepin2) unstable; urgency=medium
+
+  * fix: remove g_local_file_query_exists vfunc to restore GLib 2.80 behavior.
+    GLib 2.84 added a query_exists vfunc using faccessat(), which glibc
+    implements via faccessat2() syscall blocked by Chromium seccomp sandbox.
+    Remove the vfunc so g_file_query_exists() falls back to g_file_query_info()
+    (uses lstat, sandbox-safe), matching GLib 2.80.
+
+ -- lichenggang <lichenggang@uniontech.com>  Wed, 22 Jul 2026 00:12:00 +0800
+
 glib2.0 (2.84.4-3deepin1) unstable; urgency=medium
 
   * Revert 64-bit time_t changes.
