@@ -1,3 +1,21 @@
+glib2.0 (2.84.4-3deepin3) unstable; urgency=medium
+
+  * fix: disable g_local_file_query_exists vfunc to restore GLib 2.80 behavior.
+    GLib 2.84 added a g_local_file_query_exists() vfunc that calls faccessat()
+    with AT_EACCESS | AT_SYMLINK_NOFOLLOW, which glibc implements via the
+    faccessat2() syscall (439 on x86_64). This syscall is blocked by the
+    Chromium seccomp sandbox used by the 360 browser, causing
+    g_file_query_exists() to return FALSE and breaking the right-click
+    "Save As" feature. GLib 2.80 did not have this vfunc and fell back to
+    g_file_query_info() which uses g_lstat() (lstat syscall, sandbox-safe).
+    Completely remove the vfunc definition and registration so
+    g_file_query_exists() uses the g_file_query_info() fallback, exactly
+    matching the GLib 2.80 behavior. Code comparison confirmed this is the
+    only relevant change between 2.80 and 2.84 for file operations (statx,
+    mount API, content type, file I/O streams are all identical).
+
+ -- lichenggang <lichenggang@uniontech.com>  Tue, 21 Jul 2026 23:45:00 +0800
+
 glib2.0 (2.84.4-3deepin1) unstable; urgency=medium
 
   * Revert 64-bit time_t changes.
