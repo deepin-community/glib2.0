@@ -1,3 +1,12 @@
+glib2.0 (2.84.4-3deepin3) unstable; urgency=medium
+
+  * fix: remove query_exists vfunc to restore GLib 2.80 behavior
+    GLib 2.84 introduced a query_exists vfunc that bypasses the traditional
+    g_file_query_info() path. Remove it so g_file_query_exists() always
+    calls query_info, matching GLib 2.80 behavior that 360 browser relies on.
+
+ -- lichenggang <lichenggang@uniontech.com>  Tue, 21 Jul 2026 18:00:00 +0800
+
 glib2.0 (2.84.4-3deepin2) unstable; urgency=medium
 
   * fix: use lstat() instead of faccessat() for g_local_file_query_exists

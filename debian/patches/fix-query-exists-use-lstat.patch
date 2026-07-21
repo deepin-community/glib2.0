@@ -1,38 +1,51 @@
-Description: Use lstat() instead of faccessat() for g_local_file_query_exists
- The g_local_file_query_exists() function uses faccessat() with the AT_EACCESS
- flag, which checks the effective user's file accessibility rather than file
- existence. This causes g_file_query_exists() to return FALSE for files that
- exist but are not accessible by the effective user, breaking the file save
- dialog in applications like the 360 browser.
+Description: Remove query_exists vfunc to restore GLib 2.80 behavior
+ GLib 2.84 introduced a query_exists vfunc in GFileIface that uses
+ faccessat() to check file existence. This bypasses the traditional
+ g_file_query_info() path and can cause issues in sandboxed environments
+ (e.g., Chromium-based browsers with seccomp) where faccessat() behaves
+ differently or is restricted.
  .
- Fix by using g_lstat() instead of faccessat(), which properly checks file
- existence regardless of permissions, matching the behavior before GLib 2.84.
+ Remove the query_exists vfunc implementation so that g_file_query_exists()
+ always falls back to g_file_query_info(), matching the GLib 2.80 behavior
+ that applications like the 360 browser rely on.
 Author: Codex Agent <codex@deepin.org>
 Origin: https://github.com/Zeno-sole/glib2.0
 Last-Update: 2026-07-21
 
 --- a/gio/glocalfile.c
 +++ b/gio/glocalfile.c
-@@ -1261,8 +1261,10 @@ g_local_file_query_info (GFile                *file,
+@@ -1261,22 +1261,6 @@ g_local_file_query_info (GFile                *file,
    return info;
  }
  
 -/* FIXME: faccessat() is available on FreeBSD but appears to not work correctly
 - * here. This needs diagnosing; https://gitlab.gnome.org/GNOME/glib/-/issues/3495
-+/* Use g_lstat() to check file existence rather than faccessat() which
-+ * checks file accessibility (effective user permissions) and can
-+ * incorrectly return "file not found" even when the file exists.
-+ * See: https://gitlab.gnome.org/GNOME/glib/-/issues/3495
-  *
-  * On Android (bionic as of 2015-02-24), faccess() returns EINVAL if any flags are set,
-  * so we have to use the fallback path. See
-@@ -1274,8 +1276,9 @@ g_local_file_query_exists (GFile        *file,
-                            GCancellable *cancellable)
- {
-   GLocalFile *local = G_LOCAL_FILE (file);
-+  struct stat st;
- 
+- *
+- * On Android (bionic as of 2015-02-24), faccess() returns EINVAL if any flags are set,
+- * so we have to use the fallback path. See
+- * https://cs.android.com/android/_/android/platform/bionic/+/35778253a5ed71e87a608ca590b63729d9f88567
+- */
+-#if defined(HAVE_FACCESSAT) && !defined(__FreeBSD__) && !defined(__ANDROID__)
+-static gboolean
+-g_local_file_query_exists (GFile        *file,
+-                           GCancellable *cancellable)
+-{
+-  GLocalFile *local = G_LOCAL_FILE (file);
+-
 -  return faccessat (0, local->filename, F_OK, AT_EACCESS | AT_SYMLINK_NOFOLLOW) == 0;
-+  return g_lstat (local->filename, &st) == 0;
+-}
+-#endif
+-
+ static GFileAttributeInfoList *
+ g_local_file_query_settable_attributes (GFile         *file,
+ 					GCancellable  *cancellable,
+@@ -3162,9 +3146,6 @@ g_local_file_iface_init (GFileIface *iface)
+   iface->monitor_dir = g_local_file_monitor_dir;
+   iface->monitor_file = g_local_file_monitor_file;
+   iface->measure_disk_usage = g_local_file_measure_disk_usage;
+-#if defined(HAVE_FACCESSAT) && !defined(__FreeBSD__) && !defined(__ANDROID__)
+-  iface->query_exists = g_local_file_query_exists;
+-#endif
+ 
+   iface->supports_thread_contexts = TRUE;
  }
- #endif
