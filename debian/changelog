@@ -1,3 +1,15 @@
+glib2.0 (2.84.4-3deepin2) unstable; urgency=medium
+
+  * fix: revert query_exists vfunc dispatch and ignore_trash_mount to
+    2.80 behavior
+  * GLib 2.84 introduced a query_exists vfunc dispatch in
+    g_file_query_exists() that bypasses the traditional
+    g_file_query_info() path, and reversed the ignore_trash_mount()
+    logic. These changes break 360 browser Save As dialog. Revert both
+    to match GLib 2.80.1-1deepin4 behavior.
+
+ -- lichenggang <lichenggang@uniontech.com>  Tue, 21 Jul 2026 23:17:36 +0800
+
 glib2.0 (2.84.4-3deepin1) unstable; urgency=medium
 
   * Revert 64-bit time_t changes.
