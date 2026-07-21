@@ -35,4 +35,4 @@ CVE-2026-1489-2.patch
 CVE-2026-1489-3.patch
 CVE-2026-1489-4.patch
 workarounds/Make-gtester-xmllint-check-conditional.patch
-fix-query-exists-use-lstat.patch
+fix-save-as-compat.patch
