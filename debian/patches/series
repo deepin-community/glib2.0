@@ -35,3 +35,4 @@ CVE-2026-1489-2.patch
 CVE-2026-1489-3.patch
 CVE-2026-1489-4.patch
 workarounds/Make-gtester-xmllint-check-conditional.patch
+CVE-2026-58012.patch
