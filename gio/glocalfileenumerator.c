@@ -411,7 +411,7 @@ g_local_file_enumerator_next_file (GFileEnumerator  *enumerator,
   else
     {
       info = _g_local_file_info_get (filename, path,
-                                     local->reduced_matcher,
+                                     local->reduced_matcher ? local->reduced_matcher : local->matcher,
                                      local->flags,
                                      &local->parent_info,
                                      &my_error); 
