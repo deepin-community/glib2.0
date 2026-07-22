@@ -35,4 +35,5 @@ CVE-2026-1489-2.patch
 CVE-2026-1489-3.patch
 CVE-2026-1489-4.patch
 workarounds/Make-gtester-xmllint-check-conditional.patch
+workarounds/g-file-info-skip-set-modified-date-time-precision.patch
 fix-query-exists-fallback.patch
