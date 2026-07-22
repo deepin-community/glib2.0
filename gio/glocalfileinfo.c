@@ -1919,7 +1919,28 @@ _g_local_file_info_get (const char             *basename,
 
   if (attribute_matcher == NULL)
     {
+      /* Always set is-hidden and is-backup even when the attribute matcher
+       * is NULL, since callers may call g_file_info_get_is_hidden() or
+       * g_file_info_get_is_backup() on the returned GFileInfo. Failure to
+       * set them will cause a g_critical() crash when the caller has
+       * g_log_set_always_fatal(G_LOG_LEVEL_CRITICAL).
+       *
+       * Note: stat_ok is not available at this early return point, so we
+       * can only check basename-based hidden indications (leading dot and
+       * .hidden file). The lost+found check requires stat, so it's skipped.
+       */
       g_file_info_unset_attribute_mask (info);
+#ifndef G_OS_WIN32
+      g_file_info_set_is_hidden (info,
+                                 (basename != NULL &&
+                                  (basename[0] == '.' ||
+                                   file_is_hidden (path, basename))));
+
+      _g_file_info_set_attribute_boolean_by_id (info,
+                                                G_FILE_ATTRIBUTE_ID_STANDARD_IS_BACKUP,
+                                                basename != NULL && basename[0] != '\0' &&
+                                                basename[strlen (basename) - 1] == '~');
+#endif
       return info;
     }
 
