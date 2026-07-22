@@ -19,9 +19,11 @@ Author: lichenggang <lichenggang@uniontech.com>
 Origin: https://github.com/Zeno-sole/glib2.0
 Last-Update: 2026-07-22
 
---- a/gio/glocalfile.c
-+++ b/gio/glocalfile.c
-@@ -1261,24 +1261,6 @@ g_local_file_query_info (GFile                *file,
+Index: glib2.0/gio/glocalfile.c
+===================================================================
+--- glib2.0.orig/gio/glocalfile.c
++++ glib2.0/gio/glocalfile.c
+@@ -1261,24 +1261,6 @@ g_local_file_query_info (GFile
    return info;
  }
  
@@ -46,7 +48,7 @@ Last-Update: 2026-07-22
  static GFileAttributeInfoList *
  g_local_file_query_settable_attributes (GFile         *file,
  					GCancellable  *cancellable,
-@@ -3162,9 +3144,6 @@ g_local_file_file_iface_init (GFileIface *iface)
+@@ -3164,9 +3146,6 @@ g_local_file_file_iface_init (GFileIface
    iface->monitor_dir = g_local_file_monitor_dir;
    iface->monitor_file = g_local_file_monitor_file;
    iface->measure_disk_usage = g_local_file_measure_disk_usage;
@@ -56,9 +58,11 @@ Last-Update: 2026-07-22
  
    iface->supports_thread_contexts = TRUE;
  }
---- a/gio/glocalfileenumerator.c
-+++ b/gio/glocalfileenumerator.c
-@@ -411,7 +411,7 @@ g_local_file_enumerator_next_file (GFileEnumerator  *enumerator,
+Index: glib2.0/gio/glocalfileenumerator.c
+===================================================================
+--- glib2.0.orig/gio/glocalfileenumerator.c
++++ glib2.0/gio/glocalfileenumerator.c
+@@ -411,7 +411,7 @@ g_local_file_enumerator_next_file (GFile
    else
      {
        info = _g_local_file_info_get (filename, path,
@@ -67,9 +71,11 @@ Last-Update: 2026-07-22
                                       local->flags,
                                       &local->parent_info,
                                       &my_error); 
---- a/gio/glocalfileinfo.c
-+++ b/gio/glocalfileinfo.c
-@@ -1920,6 +1920,17 @@ _g_local_file_info_get (const char             *basename,
+Index: glib2.0/gio/glocalfileinfo.c
+===================================================================
+--- glib2.0.orig/gio/glocalfileinfo.c
++++ glib2.0/gio/glocalfileinfo.c
+@@ -1920,6 +1920,17 @@ _g_local_file_info_get (const char
    if (attribute_matcher == NULL)
      {
        g_file_info_unset_attribute_mask (info);
@@ -87,7 +93,7 @@ Last-Update: 2026-07-22
        return info;
      }
  
-@@ -1994,23 +2005,7 @@ _g_local_file_info_get (const char             *basename,
+@@ -1994,23 +2005,7 @@ _g_local_file_info_get (const char
    if (stat_ok)
      set_info_from_stat (info, &statbuf, attribute_matcher);
  
@@ -112,7 +118,7 @@ Last-Update: 2026-07-22
    _g_file_info_set_attribute_boolean_by_id (info, G_FILE_ATTRIBUTE_ID_STANDARD_IS_BACKUP, FALSE);
  
    g_file_info_set_is_hidden (info, (statbuf.attributes & FILE_ATTRIBUTE_HIDDEN));
-@@ -2223,6 +2218,24 @@ _g_local_file_info_get (const char             *basename,
+@@ -2223,6 +2218,24 @@ _g_local_file_info_get (const char
  
    g_file_info_unset_attribute_mask (info);
  
