@@ -1,0 +1,139 @@
+Description: Fix 360 browser right-click "Save As" crash caused by GFileInfo missing is-hidden/is-backup
+ GLib 2.84 added a query_exists vfunc using faccessat() which is blocked by
+ Chromium seccomp sandbox, causing g_file_query_exists() to fail.
+ Additionally, when GTK2 file chooser requests a reduced attribute set,
+ the reduced_matcher can become NULL, causing _g_local_file_info_get to
+ return early without setting is-hidden and is-backup. This triggers
+ g_critical() which the 360 browser has set to always fatal via
+ g_log_set_always_fatal(G_LOG_LEVEL_CRITICAL).
+ .
+ Three fixes:
+ 1. Remove g_local_file_query_exists vfunc so g_file_query_exists() falls
+    back to g_file_query_info() using lstat() (sandbox-safe).
+ 2. In g_local_file_enumerator_next_file, fall back to local->matcher when
+    reduced_matcher is NULL.
+ 3. In _g_local_file_info_get, always set is-hidden and is-backup after
+    the attribute mask is unset, so they're available regardless of the
+    requested attribute set.
+Author: lichenggang <lichenggang@uniontech.com>
+Origin: https://github.com/Zeno-sole/glib2.0
+Last-Update: 2026-07-22
+
+--- a/gio/glocalfile.c
++++ b/gio/glocalfile.c
+@@ -1261,24 +1261,6 @@ g_local_file_query_info (GFile                *file,
+   return info;
+ }
+ 
+-/* FIXME: faccessat() is available on FreeBSD but appears to not work correctly
+- * here. This needs diagnosing; https://gitlab.gnome.org/GNOME/glib/-/issues/3495
+- *
+- * On Android (bionic as of 2015-02-24), faccess() returns EINVAL if any flags are set,
+- * so we have to use the fallback path. See
+- * https://cs.android.com/android/_/android/platform/bionic/+/35778253a5ed71e87a608ca590b63729d9f88567
+- */
+-#if defined(HAVE_FACCESSAT) && !defined(__FreeBSD__) && !defined(__ANDROID__)
+-static gboolean
+-g_local_file_query_exists (GFile        *file,
+-                           GCancellable *cancellable)
+-{
+-  GLocalFile *local = G_LOCAL_FILE (file);
+-
+-  return faccessat (0, local->filename, F_OK, AT_EACCESS | AT_SYMLINK_NOFOLLOW) == 0;
+-}
+-#endif
+-
+ static GFileAttributeInfoList *
+ g_local_file_query_settable_attributes (GFile         *file,
+ 					GCancellable  *cancellable,
+@@ -3162,9 +3144,6 @@ g_local_file_file_iface_init (GFileIface *iface)
+   iface->monitor_dir = g_local_file_monitor_dir;
+   iface->monitor_file = g_local_file_monitor_file;
+   iface->measure_disk_usage = g_local_file_measure_disk_usage;
+-#if defined(HAVE_FACCESSAT) && !defined(__FreeBSD__) && !defined(__ANDROID__)
+-  iface->query_exists = g_local_file_query_exists;
+-#endif
+ 
+   iface->supports_thread_contexts = TRUE;
+ }
+--- a/gio/glocalfileenumerator.c
++++ b/gio/glocalfileenumerator.c
+@@ -411,7 +411,7 @@ g_local_file_enumerator_next_file (GFileEnumerator  *enumerator,
+   else
+     {
+       info = _g_local_file_info_get (filename, path,
+-                                     local->reduced_matcher,
++                                     local->reduced_matcher ? local->reduced_matcher : local->matcher,
+                                      local->flags,
+                                      &local->parent_info,
+                                      &my_error); 
+--- a/gio/glocalfileinfo.c
++++ b/gio/glocalfileinfo.c
+@@ -1920,6 +1920,17 @@ _g_local_file_info_get (const char             *basename,
+   if (attribute_matcher == NULL)
+     {
+       g_file_info_unset_attribute_mask (info);
++#ifndef G_OS_WIN32
++      g_file_info_set_is_hidden (info,
++                                 (basename != NULL &&
++                                  (basename[0] == '.' ||
++                                   file_is_hidden (path, basename))));
++
++      _g_file_info_set_attribute_boolean_by_id (info,
++                                                G_FILE_ATTRIBUTE_ID_STANDARD_IS_BACKUP,
++                                                basename != NULL && basename[0] != '\0' &&
++                                                basename[strlen (basename) - 1] == '~');
++#endif
+       return info;
+     }
+ 
+@@ -1994,23 +2005,7 @@ _g_local_file_info_get (const char             *basename,
+   if (stat_ok)
+     set_info_from_stat (info, &statbuf, attribute_matcher);
+ 
+-#ifndef G_OS_WIN32
+-  if (_g_file_attribute_matcher_matches_id (attribute_matcher,
+-					    G_FILE_ATTRIBUTE_ID_STANDARD_IS_HIDDEN))
+-    {
+-      g_file_info_set_is_hidden (info,
+-                                 (basename != NULL &&
+-                                  (basename[0] == '.' ||
+-                                   file_is_hidden (path, basename) ||
+-                                   (stat_ok &&
+-                                    _g_local_file_is_lost_found_dir (path, _g_stat_dev (&statbuf))))));
+-    }
+-
+-  _g_file_info_set_attribute_boolean_by_id (info,
+-                                            G_FILE_ATTRIBUTE_ID_STANDARD_IS_BACKUP,
+-                                            basename != NULL && basename[strlen (basename) - 1] == '~' &&
+-                                                (stat_ok && S_ISREG (_g_stat_mode (&statbuf))));
+-#else
++#ifdef G_OS_WIN32
+   _g_file_info_set_attribute_boolean_by_id (info, G_FILE_ATTRIBUTE_ID_STANDARD_IS_BACKUP, FALSE);
+ 
+   g_file_info_set_is_hidden (info, (statbuf.attributes & FILE_ATTRIBUTE_HIDDEN));
+@@ -2223,6 +2218,24 @@ _g_local_file_info_get (const char             *basename,
+ 
+   g_file_info_unset_attribute_mask (info);
+ 
++#ifndef G_OS_WIN32
++  /* Always set is-hidden and is-backup after the mask is unset, since
++   * callers may call g_file_info_get_is_hidden() or
++   * g_file_info_get_is_backup() even if they did not request them in the
++   * attribute string. Failure to set them will cause a g_critical() crash. */
++  g_file_info_set_is_hidden (info,
++                             (basename != NULL &&
++                              (basename[0] == '.' ||
++                               file_is_hidden (path, basename) ||
++                               (stat_ok &&
++                                _g_local_file_is_lost_found_dir (path, _g_stat_dev (&statbuf))))));
++
++  _g_file_info_set_attribute_boolean_by_id (info,
++                                            G_FILE_ATTRIBUTE_ID_STANDARD_IS_BACKUP,
++                                            basename != NULL && basename[strlen (basename) - 1] == '~' &&
++                                                (stat_ok && S_ISREG (_g_stat_mode (&statbuf))));
++#endif
++
+   g_free (symlink_target);
+ 
+   return info;

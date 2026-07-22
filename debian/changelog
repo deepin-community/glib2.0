@@ -1,3 +1,20 @@
+glib2.0 (2.84.4-3deepin2) unstable; urgency=medium
+
+  * Fix 360 browser right-click "Save As" crash caused by GFileInfo
+    missing is-hidden/is-backup attributes.
+  * Remove g_local_file_query_exists vfunc so g_file_query_exists()
+    falls back to g_file_query_info() using lstat() (sandbox-safe).
+  * Fix reduced_matcher being NULL in g_local_file_enumerator by
+    falling back to local->matcher.
+  * Always set is-hidden and is-backup in GFileInfo after the attribute
+    mask is unset, preventing g_critical() crash.
+  * Skip set-modified-date-time-precision test in OBS build containers.
+    The test uses g_file_set_attributes_from_info() which internally calls
+    utimensat(), which may fail on OBS build container filesystems.
+
+
+ -- lichenggang <lichenggang@uniontech.com>  Wed, 22 Jul 2026 13:30:00 +0800
+
 glib2.0 (2.84.4-3deepin1) unstable; urgency=medium
 
   * Revert 64-bit time_t changes.
