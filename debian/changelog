@@ -1,3 +1,9 @@
+glib2.0 (2.84.4-3deepin2) unstable; urgency=medium
+
+  * fix(cve): CVE-2026-15588
+
+ -- deepin-ci-robot <packages@deepin.org>  Fri, 07 Aug 2026 15:51:38 +0800
+
 glib2.0 (2.84.4-3deepin1) unstable; urgency=high
 
   * Fix CVE-2026-58010: backport upstream fix (Closes: CVE-2026-58010)
