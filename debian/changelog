@@ -1,3 +1,9 @@
+glib2.0 (2.84.4-3deepin4) unstable; urgency=medium
+
+  * fix: handle UTF-8 in long trash names
+
+ -- Liu Zhangjian <liuzhangjian@uniontech.com>  Mon, 31 Aug 2026 10:19:05 +0800
+
 glib2.0 (2.84.4-3deepin3) unstable; urgency=medium
 
   * fix(cve): CVE-2026-16118
