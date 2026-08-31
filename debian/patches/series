@@ -23,6 +23,7 @@ workarounds/testfilemonitor-Skip-if-we-are-avoiding-flaky-tests.patch
 debian/girepository-Describe-the-Debian-specific-cross-prefixed-.patch
 fix-test-timeout.patch
 keep-suffix-name-when-trashing.patch
+truncate-long-filenames-in-trash-from-front.patch
 gfileutils-Preserve-mode-during-atomic-updates.patch
 gconvert-Error-out-if-g_escape_uri_string-would-overflow.patch
 fuzzing-Add-fuzz-tests-for-g_filename_-to-from-_uri.patch
