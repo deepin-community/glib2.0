@@ -1,3 +1,9 @@
+glib2.0 (2.84.4-3deepin5) unstable; urgency=medium
+
+  * Rebuild with LTO enabled (dpkg vendor feature optimize/lto).
+
+ -- tunaichao <tunaichao@uniontech.com>  Fri, 11 Sep 2026 14:59:03 +0800
+
 glib2.0 (2.84.4-3deepin4) unstable; urgency=medium
 
   * fix: handle UTF-8 in long trash names
