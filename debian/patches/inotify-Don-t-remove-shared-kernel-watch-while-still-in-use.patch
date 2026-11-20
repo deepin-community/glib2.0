@@ -1,0 +1,231 @@
+From: Kashyap Ekbote <kashyap.ekbote@gmail.com>
+Date: Sun, 20 Sep 2026 09:59:45 +0530
+Subject: inotify: Don't remove shared kernel watch while still in use
+MIME-Version: 1.0
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 8bit
+
+inotify watches are keyed by inode, so watching a directory (or file)
+through two different paths that resolve to the same inode -- e.g. a real
+path and a symlink alias -- returns the same watch descriptor (wd). The
+backend already tracks this by keeping a GList of watched dirs/files per
+wd.
+
+However, when a monitor was cancelled, _ip_stop_watching() (and likewise
+ip_watched_file_stop()) called _ik_ignore() -> inotify_rm_watch() as soon
+as that particular path had no subscribers, without checking whether any
+other path still shared the same wd. This tore down the single kernel
+watch out from under the still-active monitors on the other path: they
+kept reporting g_file_monitor_is_cancelled() == FALSE but silently
+stopped receiving events.
+
+Only remove the kernel watch once no other watched directory/file still
+references the wd, by removing our own entry from the wd hash first and
+issuing _ik_ignore() only when the list has become empty.
+
+Add a regression test covering cancellation of a directory monitor
+established through a symlink alias.
+
+Bug: https://gitlab.gnome.org/GNOME/glib/-/issues/4055
+Origin: upstream, commit:3457cf66426dc48eee1f61b1b2818d2f4feec01b
+Last-Update: 2026-11-20
+---
+ gio/inotify/inotify-path.c  |  30 +++++++--
+ gio/tests/testfilemonitor.c | 125 +++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 150 insertions(+), 5 deletions(-)
+
+Index: glib2.0/gio/inotify/inotify-path.c
+===================================================================
+--- glib2.0.orig/gio/inotify/inotify-path.c
++++ glib2.0/gio/inotify/inotify-path.c
+@@ -241,8 +241,17 @@ ip_watched_file_stop (ip_watched_file_t
+ {
+   if (file->wd >= 0)
+     {
+-      _ik_ignore (file->path, file->wd);
+-      ip_unmap_wd_file (file->wd, file);
++      gint32 wd = file->wd;
++
++      /* Drop this file from the wd list first, then only remove the kernel
++       * watch if no other watched file (reached via a different path that
++       * resolves to the same inode, e.g. a link) still shares this wd.
++       * Otherwise we would tear down a watch that is still in use. */
++      ip_unmap_wd_file (wd, file);
++
++      if (g_hash_table_lookup (wd_file_hash, GINT_TO_POINTER (wd)) == NULL)
++        _ik_ignore (file->path, wd);
++
+       file->wd = -1;
+     }
+ }
+@@ -382,13 +391,24 @@ _ip_stop_watching (inotify_sub *sub)
+     return TRUE;
+   
+   ip_unmap_sub_dir (sub, dir);
+-  
++
+   /* No one is subscribing to this directory any more */
+   if (dir->subs == NULL)
+     {
+-      _ik_ignore (dir->path, dir->wd);
+-      ip_unmap_wd_dir (dir->wd, dir);
++      gint32 wd = dir->wd;
++
++      /* Drop this directory from the wd list first, then only remove the
++       * kernel watch if no other watched directory (reached via a different
++       * path that resolves to the same inode, e.g. a symlink) still shares
++       * this wd. Since inotify watches are keyed by inode, removing the wd
++       * while it is still shared would silently stop events for the other,
++       * still-active monitors. */
++      ip_unmap_wd_dir (wd, dir);
+       ip_unmap_path_dir (dir->path, dir);
++
++      if (g_hash_table_lookup (wd_dir_hash, GINT_TO_POINTER (wd)) == NULL)
++        _ik_ignore (dir->path, wd);
++
+       ip_watched_dir_free (dir);
+     }
+   
+Index: glib2.0/gio/tests/testfilemonitor.c
+===================================================================
+--- glib2.0.orig/gio/tests/testfilemonitor.c
++++ glib2.0/gio/tests/testfilemonitor.c
+@@ -1157,6 +1157,130 @@ test_root (Fixture       *fixture,
+   g_clear_object (&file);
+ }
+ 
++typedef struct
++{
++  GMainLoop *loop;
++  guint n_created;
++} AliasData;
++
++static void
++alias_monitor_changed (GFileMonitor      *monitor,
++                       GFile             *file,
++                       GFile             *other_file,
++                       GFileMonitorEvent  event_type,
++                       gpointer           user_data)
++{
++  AliasData *data = user_data;
++
++  if (event_type == G_FILE_MONITOR_EVENT_CREATED)
++    {
++      data->n_created++;
++      g_main_loop_quit (data->loop);
++    }
++}
++
++static gboolean
++alias_timeout_cb (gpointer user_data)
++{
++  AliasData *data = user_data;
++
++  g_main_loop_quit (data->loop);
++
++  return G_SOURCE_REMOVE;
++}
++
++static void
++test_cancel_alias_keeps_watch (Fixture       *fixture,
++                               gconstpointer  user_data)
++{
++  GFile *real_dir = NULL;
++  GFile *alias_dir = NULL;
++  GFile *canary = NULL;
++  GFileMonitor *real_monitor = NULL;
++  GFileMonitor *alias_monitor = NULL;
++  GFileOutputStream *stream = NULL;
++  GError *local_error = NULL;
++  AliasData data = { NULL, 0 };
++
++  g_test_summary ("Test that cancelling a directory monitor established through "
++                  "a symlink alias does not remove the inotify watch that is "
++                  "still used by a monitor on the real path.");
++  g_test_bug ("https://gitlab.gnome.org/GNOME/glib/-/issues/4055");
++
++  if (skip_win32 ())
++    return;
++
++  /* respect g_test_skip() during setup() */
++  if (g_test_failed ())
++    return;
++
++  /* Create <tmp>/real and a symlink <tmp>/alias -> real. Both paths resolve
++   * to the same inode, so the inotify backend shares a single kernel watch
++   * (wd) between monitors on the two paths. */
++  real_dir = g_file_get_child (fixture->tmp_dir, "real");
++  g_file_make_directory (real_dir, NULL, &local_error);
++  g_assert_no_error (local_error);
++
++  alias_dir = g_file_get_child (fixture->tmp_dir, "alias");
++  g_file_make_symbolic_link (alias_dir, "real", NULL, &local_error);
++  if (local_error != NULL)
++    {
++      g_test_skip_printf ("Symbolic links not supported: %s", local_error->message);
++      g_clear_error (&local_error);
++      goto out;
++    }
++
++  real_monitor = g_file_monitor_directory (real_dir, G_FILE_MONITOR_NONE, NULL, &local_error);
++  g_assert_no_error (local_error);
++  g_assert_nonnull (real_monitor);
++
++  alias_monitor = g_file_monitor_directory (alias_dir, G_FILE_MONITOR_NONE, NULL, &local_error);
++  g_assert_no_error (local_error);
++  g_assert_nonnull (alias_monitor);
++
++  g_file_monitor_set_rate_limit (real_monitor, 100);
++
++  data.loop = g_main_loop_new (NULL, FALSE);
++  g_signal_connect (real_monitor, "changed",
++                    G_CALLBACK (alias_monitor_changed), &data);
++
++  /* Cancel the alias-side monitor. This must NOT tear down the shared kernel
++   * watch that the real-path monitor still depends on. */
++  g_file_monitor_cancel (alias_monitor);
++  g_clear_object (&alias_monitor);
++
++  g_assert_false (g_file_monitor_is_cancelled (real_monitor));
++
++  /* Create a file in the real directory; the surviving monitor must still
++   * receive the CREATED event. Before the fix it silently received nothing. */
++  canary = g_file_get_child (real_dir, "canary");
++  stream = g_file_create (canary, G_FILE_CREATE_NONE, NULL, &local_error);
++  g_assert_no_error (local_error);
++  g_clear_object (&stream);
++
++  g_timeout_add_seconds (5, alias_timeout_cb, &data);
++  g_main_loop_run (data.loop);
++
++  g_assert_cmpuint (data.n_created, >, 0);
++
++  g_file_delete (canary, NULL, &local_error);
++  g_assert_no_error (local_error);
++
++out:
++  g_clear_object (&real_monitor);
++  g_clear_object (&alias_monitor);
++  g_clear_pointer (&data.loop, g_main_loop_unref);
++
++  if (alias_dir != NULL)
++    g_file_delete (alias_dir, NULL, NULL);
++  if (real_dir != NULL)
++    g_file_delete (real_dir, NULL, NULL);
++
++  g_clear_object (&canary);
++  g_clear_object (&alias_dir);
++  g_clear_object (&real_dir);
++}
++
+ int
+ main (int argc, char *argv[])
+ {
+@@ -1170,6 +1294,7 @@ main (int argc, char *argv[])
+   g_test_add ("/monitor/file/hard-links", Fixture, NULL, setup, test_file_hard_links, teardown);
+   g_test_add ("/monitor/finalize-in-callback", Fixture, NULL, setup, test_finalize_in_callback, teardown);
+   g_test_add ("/monitor/root", Fixture, NULL, setup, test_root, teardown);
++  g_test_add ("/monitor/cancel-alias-keeps-watch", Fixture, NULL, setup, test_cancel_alias_keeps_watch, teardown);
+ 
+   return g_test_run ();
+ }

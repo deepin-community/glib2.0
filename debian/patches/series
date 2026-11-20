@@ -44,3 +44,4 @@ CVE-2026-1489-4.patch
 workarounds/Make-gtester-xmllint-check-conditional.patch
 CVE-2026-15588.patch
 CVE-2026-16118.patch
+inotify-Don-t-remove-shared-kernel-watch-while-still-in-use.patch
